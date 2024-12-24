@@ -108,21 +108,27 @@ CREATE TABLE IF NOT EXISTS public.maka_stg_clients (
     last_name VARCHAR,
     first_name VARCHAR,
     patronymic VARCHAR,
-    date_of_birth TIMESTAMP,  
+    date_of_birth DATE,  
     passport_num VARCHAR UNIQUE, 
     passport_valid_to DATE,   
-    phone VARCHAR UNIQUE  
+    phone VARCHAR UNIQUE,
+    create_dt TIMESTAMP,
+    update_dt TIMESTAMP
 );
 
 -- Таблица public.maka_stg_accounts
 CREATE TABLE IF NOT EXISTS public.maka_stg_accounts (
     account_num VARCHAR PRIMARY KEY,
     valid_to DATE,   
-    client VARCHAR 
+    client VARCHAR,
+    create_dt TIMESTAMP,
+    update_dt TIMESTAMP
 );
 
 -- Таблица public.maka_stg_cards
 CREATE TABLE IF NOT EXISTS public.maka_stg_cards (
-    cards_num VARCHAR PRIMARY KEY,
-    account_num VARCHAR 
+    card_num VARCHAR PRIMARY KEY,
+    account VARCHAR,
+    create_dt TIMESTAMP,
+    update_dt TIMESTAMP
 );
