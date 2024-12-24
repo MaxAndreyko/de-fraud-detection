@@ -1,0 +1,11 @@
+patterns:
+  transactions: "transactions_(\\d{2})(\\d{2})(\\d{4}).txt"
+  blacklist: "passport_blacklist_(\\d{2})(\\d{2})(\\d{4}).xlsx"
+  terminals: "terminals_(\\d{2})(\\d{2})(\\d{4}).xlsx"
+
+preprocess:
+  transactions:
+    numeric_cols:
+      - amount
+
+data_dir: data

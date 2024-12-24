@@ -1,0 +1,20 @@
+DIM:
+  accounts: public.maka_dwh_dim_accounts_hist
+  cards: public.maka_dwh_dim_cards_hist
+  clients: public.maka_dwh_dim_clients_hist
+  terminals: public.maka_dwh_dim_terminals_hist
+
+FACT:
+  blacklist: public.maka_dwh_fact_passport_blacklist
+  transactions: public.maka_dwh_fact_transactions
+
+STG:
+  accounts: public.maka_stg_accounts
+  blacklist: public.maka_stg_blacklist
+  cards: public.maka_stg_cards
+  clients: public.maka_stg_clients
+  terminals: public.maka_stg_terminals
+  transactions: public.maka_stg_transactions
+
+REP:
+  fraud: public.maka_rep_fraud
