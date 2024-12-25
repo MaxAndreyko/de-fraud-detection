@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS {DIM_terminals} (
     terminal_address VARCHAR(50),
     effective_from DATE NOT NULL,
     effective_to DATE NOT NULL,
-    deleted_flg BOOLEAN NOT NULL DEFAULT TRUE
+    deleted_flg BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 -- Создание таблицы {DIM_clients}
@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS {DIM_clients} (
     phone VARCHAR(16),
     effective_from DATE NOT NULL,
     effective_to DATE NOT NULL,
-    deleted_flg BOOLEAN NOT NULL DEFAULT TRUE
+    deleted_flg BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 -- Создание таблицы {DIM_accounts}
@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS {DIM_accounts} (
     client VARCHAR(10),
     effective_from DATE NOT NULL,
     effective_to DATE NOT NULL,
-    deleted_flg BOOLEAN NOT NULL DEFAULT TRUE
+    deleted_flg BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 -- Создание таблицы {DIM_cards}
@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS {DIM_cards} (
     account_num VARCHAR(20),
     effective_from DATE NOT NULL,
     effective_to DATE NOT NULL,
-    deleted_flg BOOLEAN NOT NULL DEFAULT TRUE
+    deleted_flg BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 -- Создание FACT таблиц
