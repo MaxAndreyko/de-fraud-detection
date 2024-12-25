@@ -93,7 +93,8 @@ CREATE TABLE IF NOT EXISTS {STG_terminals} (
     terminal_id VARCHAR,
     terminal_type VARCHAR,
     terminal_city VARCHAR,
-    terminal_address VARCHAR
+    terminal_address VARCHAR,
+    date DATE
 );
 
 -- Таблица {STG_blacklist}
