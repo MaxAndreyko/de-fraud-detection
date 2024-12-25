@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS public.maka_dwh_dim_terminals_hist (
     terminal_address VARCHAR(50),
     effective_from DATE NOT NULL,
     effective_to DATE NOT NULL,
-    is_current BOOLEAN NOT NULL DEFAULT TRUE
+    deleted_flg BOOLEAN NOT NULL DEFAULT TRUE
 );
 
 -- Создание таблицы public.maka_dwh_dim_clients_hist
@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS public.maka_dwh_dim_clients_hist (
     phone VARCHAR(16) UNIQUE,
     effective_from DATE NOT NULL,
     effective_to DATE NOT NULL,
-    is_current BOOLEAN NOT NULL DEFAULT TRUE
+    deleted_flg BOOLEAN NOT NULL DEFAULT TRUE
 );
 
 -- Создание таблицы public.maka_dwh_dim_accounts_hist
@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS public.maka_dwh_dim_accounts_hist (
     client VARCHAR(10) REFERENCES public.maka_dwh_dim_clients_hist(client_id),
     effective_from DATE NOT NULL,
     effective_to DATE NOT NULL,
-    is_current BOOLEAN NOT NULL DEFAULT TRUE
+    deleted_flg BOOLEAN NOT NULL DEFAULT TRUE
 );
 
 -- Создание таблицы public.maka_dwh_dim_cards_hist
@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS public.maka_dwh_dim_cards_hist (
     account_num VARCHAR(20) REFERENCES public.maka_dwh_dim_accounts_hist(account_num),
     effective_from DATE NOT NULL,
     effective_to DATE NOT NULL,
-    is_current BOOLEAN NOT NULL DEFAULT TRUE
+    deleted_flg BOOLEAN NOT NULL DEFAULT TRUE
 );
 
 -- Создание FACT таблиц
