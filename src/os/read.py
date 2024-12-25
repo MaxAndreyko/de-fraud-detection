@@ -2,6 +2,7 @@ import os
 import pandas as pd
 import re
 from typing import List, Dict
+from datetime import datetime
 
 def get_filepaths_by_pattern(source_dir: str, pattern: str) -> List[str]:
     """Gets filepaths of files with specified filename pattern using regex.
@@ -67,6 +68,7 @@ def get_incoming_data(source_dir: str, file_patterns: Dict[str, str], csv_sep: s
             elif filepath.endswith(".txt") or filepath.endswith(".csv"):
                 curr_data = pd.read_csv(filepath, header=0, sep=csv_sep)
             if curr_data is not None:
+                curr_data["path"] = [filepath] * len(curr_data) # Add column with path for further processing
                 read_data = dataframes.get(table_name)
                 if isinstance(read_data, pd.DataFrame):
                     dataframes[table_name] = pd.concat([read_data, curr_data], axis=0)
@@ -103,10 +105,96 @@ def prep_incoming_data(data: Dict[str, pd.DataFrame], prep_config: Dict[str, Dic
         table_prep_config = prep_config.get(table_name)
         if table_prep_config is not None:
             numeric_cols = table_prep_config.get("numeric_cols")
+            add_cols = table_prep_config.get("add_cols")
+            rm_cols = table_prep_config.get("rm_cols")
             if numeric_cols is not None:
                 df = clean_numeric_columns(df, numeric_cols)
+            if add_cols is not None:
+                df = add_columns(df, add_cols)
+            if rm_cols is not None:
+                df = remove_columns(df, rm_cols)
+            
     return data
 
+def add_columns(df: pd.DataFrame, cols: List[str]) -> pd.DataFrame:
+    """
+    Add specified columns to a DataFrame.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        The input DataFrame to which columns will be added.
+    
+    cols : List[str]
+        A list of column names to be added to the DataFrame. 
+
+    Returns
+    -------
+    pd.DataFrame
+        A new DataFrame with the specified columns added.
+
+    Raises
+    ------
+    KeyError
+        If 'date' is specified in `cols` but the 'path' column is not found in the DataFrame.
+    """
+    
+    if "date" in cols:
+        if "path" in df.columns:
+            df["date"] = df["path"].apply(get_date_from_string)
+        else:
+            raise KeyError("Column 'path' not found. Date could not be extracted.")
+    return df
+
+
+def remove_columns(df: pd.DataFrame, cols: List[str]) -> pd.DataFrame:
+    """
+    Remove specified columns from a DataFrame.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        The input DataFrame from which columns will be removed.
+    cols : List[str]
+        A list of column names to be removed from the DataFrame.
+
+    Returns
+    -------
+    pd.DataFrame
+        A new DataFrame with the specified columns removed.
+    """
+    cols_to_remove = [col for col in cols if col in df.columns]
+    return df.drop(columns=cols_to_remove, inplace=True)
+
+
+def get_date_from_string(string: str, regexp_date_pattern: str = r"(\d{2})(\d{2})(\d{4})", dt_date_pattern: str = "%d%m%Y") -> datetime:
+    """
+    Extracts a date from a string and returns it as a datetime object.
+
+    Parameters
+    ----------
+    string : str
+        The input string from which to extract the date.
+    regexp_date_pattern : str
+        Regular expression pattern to match the date.
+    dt_date_pattern : str
+        Format of the date to be extracted.
+
+    Returns
+    -------
+    datetime
+        The extracted date as a datetime object.
+
+    Raises
+    ------
+    ValueError
+        If no valid date is found in the string.
+    """
+    match = re.search(regexp_date_pattern, string)
+    if match:
+        date_str = ''.join(match.groups())
+        return datetime.strptime(date_str, dt_date_pattern)
+    raise ValueError("No valid date found in the string.")
 
 def clean_numeric_columns(df: pd.DataFrame, cols: List[str]) -> pd.DataFrame:
     """Cleans specified numeric columns in a DataFrame by standardizing their formats.
