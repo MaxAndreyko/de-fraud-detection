@@ -21,8 +21,8 @@ CREATE TABLE IF NOT EXISTS public.maka_dwh_dim_clients_hist (
     passport_num VARCHAR(15) UNIQUE,
     passport_valid_to DATE, 
     phone VARCHAR(16) UNIQUE,
-    effective_from TIMESTAMP NOT NULL,
-    effective_to TIMESTAMP NOT NULL,
+    effective_from DATE NOT NULL,
+    effective_to DATE NOT NULL,
     is_current BOOLEAN NOT NULL DEFAULT TRUE
 );
 
@@ -31,8 +31,8 @@ CREATE TABLE IF NOT EXISTS public.maka_dwh_dim_accounts_hist (
     account_num VARCHAR(20) PRIMARY KEY,
     valid_to DATE, 
     client VARCHAR(10) REFERENCES public.maka_dwh_dim_clients_hist(client_id),
-    effective_from TIMESTAMP NOT NULL,
-    effective_to TIMESTAMP NOT NULL,
+    effective_from DATE NOT NULL,
+    effective_to DATE NOT NULL,
     is_current BOOLEAN NOT NULL DEFAULT TRUE
 );
 
@@ -40,8 +40,8 @@ CREATE TABLE IF NOT EXISTS public.maka_dwh_dim_accounts_hist (
 CREATE TABLE IF NOT EXISTS public.maka_dwh_dim_cards_hist (
     cards_num VARCHAR(20) PRIMARY KEY,
     account_num VARCHAR(20) REFERENCES public.maka_dwh_dim_accounts_hist(account_num),
-    effective_from TIMESTAMP NOT NULL,
-    effective_to TIMESTAMP NOT NULL,
+    effective_from DATE NOT NULL,
+    effective_to DATE NOT NULL,
     is_current BOOLEAN NOT NULL DEFAULT TRUE
 );
 
