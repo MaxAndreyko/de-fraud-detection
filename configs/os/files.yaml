@@ -7,5 +7,15 @@ preprocess:
   transactions:
     numeric_cols:
       - amount
+    rm_cols:
+      - path
+  terminals:
+    add_cols:
+      - date
+    rm_cols:
+      - path
+  blacklist:
+    rm_cols:
+      - path
 
-data_dir: data
+data_dir: tests/data/terminals/input
