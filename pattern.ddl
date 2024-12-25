@@ -6,8 +6,8 @@ CREATE TABLE IF NOT EXISTS {DIM_terminals} (
     terminal_type VARCHAR(3),
     terminal_city VARCHAR(20),
     terminal_address VARCHAR(50),
-    effective_from TIMESTAMP NOT NULL,
-    effective_to TIMESTAMP NOT NULL,
+    effective_from DATE NOT NULL,
+    effective_to DATE NOT NULL,
     is_current BOOLEAN NOT NULL DEFAULT TRUE
 );
 
@@ -21,8 +21,8 @@ CREATE TABLE IF NOT EXISTS {DIM_clients} (
     passport_num VARCHAR(15) UNIQUE,
     passport_valid_to DATE, 
     phone VARCHAR(16) UNIQUE,
-    effective_from TIMESTAMP NOT NULL,
-    effective_to TIMESTAMP NOT NULL,
+    effective_from DATE NOT NULL,
+    effective_to DATE NOT NULL,
     is_current BOOLEAN NOT NULL DEFAULT TRUE
 );
 
@@ -31,8 +31,8 @@ CREATE TABLE IF NOT EXISTS {DIM_accounts} (
     account_num VARCHAR(20) PRIMARY KEY,
     valid_to DATE, 
     client VARCHAR(10) REFERENCES {DIM_clients}(client_id),
-    effective_from TIMESTAMP NOT NULL,
-    effective_to TIMESTAMP NOT NULL,
+    effective_from DATE NOT NULL,
+    effective_to DATE NOT NULL,
     is_current BOOLEAN NOT NULL DEFAULT TRUE
 );
 
@@ -40,8 +40,8 @@ CREATE TABLE IF NOT EXISTS {DIM_accounts} (
 CREATE TABLE IF NOT EXISTS {DIM_cards} (
     cards_num VARCHAR(20) PRIMARY KEY,
     account_num VARCHAR(20) REFERENCES {DIM_accounts}(account_num),
-    effective_from TIMESTAMP NOT NULL,
-    effective_to TIMESTAMP NOT NULL,
+    effective_from DATE NOT NULL,
+    effective_to DATE NOT NULL,
     is_current BOOLEAN NOT NULL DEFAULT TRUE
 );
 
