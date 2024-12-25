@@ -2,7 +2,7 @@
 
 -- Создание таблицы {DIM_terminals}
 CREATE TABLE IF NOT EXISTS {DIM_terminals} (
-    terminal_id VARCHAR(5) PRIMARY KEY,
+    terminal_id VARCHAR(5),
     terminal_type VARCHAR(3),
     terminal_city VARCHAR(20),
     terminal_address VARCHAR(50),
