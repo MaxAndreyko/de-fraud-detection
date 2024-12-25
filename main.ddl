@@ -6,8 +6,8 @@ CREATE TABLE IF NOT EXISTS public.maka_dwh_dim_terminals_hist (
     terminal_type VARCHAR(3),
     terminal_city VARCHAR(20),
     terminal_address VARCHAR(50),
-    effective_from TIMESTAMP NOT NULL,
-    effective_to TIMESTAMP NOT NULL,
+    effective_from DATE NOT NULL,
+    effective_to DATE NOT NULL,
     is_current BOOLEAN NOT NULL DEFAULT TRUE
 );
 
