@@ -2,7 +2,7 @@
 
 -- Создание таблицы public.maka_dwh_dim_terminals_hist
 CREATE TABLE IF NOT EXISTS public.maka_dwh_dim_terminals_hist (
-    terminal_id VARCHAR(5) PRIMARY KEY,
+    terminal_id VARCHAR(5),
     terminal_type VARCHAR(3),
     terminal_city VARCHAR(20),
     terminal_address VARCHAR(50),
