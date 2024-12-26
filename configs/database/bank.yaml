@@ -1,3 +1,4 @@
-accounts: info.accounts
-cards: info.cards
-clients: info.clients
+tables:
+  accounts: info.accounts
+  cards: info.cards
+  clients: info.clients
