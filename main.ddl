@@ -49,7 +49,7 @@ CREATE TABLE IF NOT EXISTS public.maka_dwh_dim_cards_hist (
 
 -- Создание таблицы public.maka_dwh_fact_transactions
 CREATE TABLE IF NOT EXISTS public.maka_dwh_fact_transactions (
-    trans_id VARCHAR(11),
+    trans_id VARCHAR(11) PRIMARY KEY,
     trans_date TIMESTAMP, 
     card_num VARCHAR(20),
     oper_type VARCHAR(8),
