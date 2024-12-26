@@ -61,8 +61,7 @@ CREATE TABLE IF NOT EXISTS public.maka_dwh_fact_transactions (
 -- Создание таблицы public.maka_dwh_fact_passport_blacklist
 CREATE TABLE IF NOT EXISTS public.maka_dwh_fact_passport_blacklist (
     passport_num VARCHAR(15),
-    entry_dt DATE,
-    PRIMARY KEY (passport_num, entry_dt)
+    entry_dt DATE
 );
 
 -- Создание таблицы public.maka_rep_fraud
