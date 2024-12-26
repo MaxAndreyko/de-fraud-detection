@@ -100,7 +100,7 @@ CREATE TABLE IF NOT EXISTS public.maka_stg_terminals (
 -- Таблица public.maka_stg_blacklist
 CREATE TABLE IF NOT EXISTS public.maka_stg_blacklist (
     date DATE,
-    passport VARCHAR
+    passport VARCHAR(15)
 );
 
 -- Таблица public.maka_stg_clients
