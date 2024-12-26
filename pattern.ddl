@@ -61,8 +61,7 @@ CREATE TABLE IF NOT EXISTS {FACT_transactions} (
 -- Создание таблицы {FACT_blacklist}
 CREATE TABLE IF NOT EXISTS {FACT_blacklist} (
     passport_num VARCHAR(15),
-    entry_dt DATE,
-    PRIMARY KEY (passport_num, entry_dt)
+    entry_dt DATE
 );
 
 -- Создание таблицы {REP_fraud}
