@@ -11,6 +11,8 @@ if __name__ == "__main__":
 
     with open("configs/os/files.yaml", "r") as os_cfg:
         os_cfg = yaml.safe_load(os_cfg)
+    with open("configs/database/dwh.yaml", "r") as dwh_cfg:
+        dwh_cfg = yaml.safe_load(dwh_cfg)
 
     # Establish connection with bank database
     bank_schema = BankSchema.from_yaml("configs/database/bank.yaml")
@@ -31,7 +33,8 @@ if __name__ == "__main__":
         user=os.getenv("DB_USER"),
         password=os.getenv("DB_PASS"),
         port=os.getenv("DB_PORT"),
-        schema=dwh_schema
+        schema=dwh_schema,
+        scd2_config=dwh_cfg["scd2"]
     )
 
     # Initialize data warehouse schema
