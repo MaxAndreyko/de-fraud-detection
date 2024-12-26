@@ -100,7 +100,7 @@ CREATE TABLE IF NOT EXISTS {STG_terminals} (
 -- Таблица {STG_blacklist}
 CREATE TABLE IF NOT EXISTS {STG_blacklist} (
     date DATE,
-    passport VARCHAR
+    passport VARCHAR(15)
 );
 
 -- Таблица {STG_clients}
