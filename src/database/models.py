@@ -5,7 +5,7 @@ class Schema(BaseModel):
     @classmethod
     def from_yaml(cls, file_path: str) -> "Schema":
         with open(file_path, "r") as file:
-            config_data = yaml.safe_load(file)
+            config_data = yaml.safe_load(file)["tables"]
             return cls(**config_data)
 
 class BankSchema(Schema):
