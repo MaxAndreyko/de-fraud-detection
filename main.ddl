@@ -79,21 +79,21 @@ CREATE TABLE IF NOT EXISTS public.maka_rep_fraud (
 
 -- Таблица public.maka_stg_transactions
 CREATE TABLE IF NOT EXISTS public.maka_stg_transactions (
-    transaction_id VARCHAR PRIMARY KEY,
+    transaction_id VARCHAR(11) PRIMARY KEY,
     transaction_date TIMESTAMP, 
     amount DECIMAL,
-    card_num VARCHAR,
-    oper_type VARCHAR,
-    oper_result VARCHAR,
-    terminal VARCHAR
+    card_num VARCHAR(20),
+    oper_type VARCHAR(8),
+    oper_result VARCHAR(7),
+    terminal VARCHAR(5)
 );
 
 -- Таблица public.maka_stg_terminals
 CREATE TABLE IF NOT EXISTS public.maka_stg_terminals (
-    terminal_id VARCHAR,
-    terminal_type VARCHAR,
-    terminal_city VARCHAR,
-    terminal_address VARCHAR,
+    terminal_id VARCHAR(5),
+    terminal_type VARCHAR(3),
+    terminal_city VARCHAR(20),
+    terminal_address VARCHAR(50),
     date DATE
 );
 
@@ -105,31 +105,31 @@ CREATE TABLE IF NOT EXISTS public.maka_stg_blacklist (
 
 -- Таблица public.maka_stg_clients
 CREATE TABLE IF NOT EXISTS public.maka_stg_clients (
-    client_id VARCHAR PRIMARY KEY,
-    last_name VARCHAR,
-    first_name VARCHAR,
-    patronymic VARCHAR,
+    client_id VARCHAR(10) PRIMARY KEY,
+    last_name VARCHAR(20),
+    first_name VARCHAR(20),
+    patronymic VARCHAR(20),
     date_of_birth DATE,  
-    passport_num VARCHAR, 
+    passport_num VARCHAR(15), 
     passport_valid_to DATE,   
-    phone VARCHAR,
+    phone VARCHAR(16),
     create_dt TIMESTAMP,
     update_dt TIMESTAMP
 );
 
 -- Таблица public.maka_stg_accounts
 CREATE TABLE IF NOT EXISTS public.maka_stg_accounts (
-    account_num VARCHAR PRIMARY KEY,
+    account VARCHAR(20) PRIMARY KEY,
     valid_to DATE,   
-    client VARCHAR,
+    client VARCHAR(10),
     create_dt TIMESTAMP,
     update_dt TIMESTAMP
 );
 
 -- Таблица public.maka_stg_cards
 CREATE TABLE IF NOT EXISTS public.maka_stg_cards (
-    card_num VARCHAR PRIMARY KEY,
-    account VARCHAR,
+    card_num VARCHAR(20) PRIMARY KEY,
+    account VARCHAR(20),
     create_dt TIMESTAMP,
     update_dt TIMESTAMP
 );
