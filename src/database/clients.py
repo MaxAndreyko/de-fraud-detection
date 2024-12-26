@@ -191,7 +191,8 @@ class DWHClient(Client):
                 user: str,
                 password: str,
                 port: str,
-                schema: BaseModel):
+                schema: BaseModel,
+                scd2_config: Dict[str, Dict[str, str]] = None):
         """Initializes a DWHClient instance for communicating with a data warehouse database.
 
         This constructor sets up the necessary parameters to establish a connection 
@@ -221,6 +222,7 @@ class DWHClient(Client):
                          password=password,
                          port=port,
                          schema=schema)
+        self.scd2_config = scd2_config
     
     def create_schema(self, ddl_pattern_filepath: str) -> None:
         """Creates empty database schema according to specified DDL script.
@@ -283,22 +285,28 @@ class DWHClient(Client):
         bank_client : BankDBClient
             Bank database client object.
         """
-        for dim_field_name, dim_table_name in self.schema.DIM:
+        for dim_field_name, _ in self.schema.DIM:
+            
+            # if self.is_table_empty(dim_table_name):
 
-            # 1. Load bank data to corresponding staging tables if dimension tables is empty
-            if self.is_table_empty(dim_table_name):
+            if hasattr(bank_client.schema, dim_field_name):
 
-                if hasattr(bank_client.schema, dim_field_name):
-                    # Get data from corresponding bank table
-                    bank_table_name = bank_client.schema.__getattribute__(dim_field_name)
-                    data = bank_client.fetch_data_to_df(bank_table_name)
+                # 1. Load bank data to corresponding staging tables
 
-                    # Load raw data to corresponding staging table
-                    self.insert_to_stg_table(dim_field_name, data)
+                # Get data from corresponding bank table
+                bank_table_name = bank_client.schema.__getattribute__(dim_field_name)
+                data = bank_client.fetch_data_to_df(bank_table_name)
+
+                # Load raw data to corresponding staging table
+                self.insert_to_stg_table(dim_field_name, data)
+
+                # 2. Insert data to DWH dimension tables from staging tables
+
+                scd2_config = self.scd2_config.get(dim_field_name)
+                if scd2_config is not None:
+                    self.insert_from_stg_table_to_dim_table(dim_field_name, **scd2_config)
         
-        # 2. Insert data to DWH dimension tables from staging tables
-                    # self.insert_df_to_table(data, dim_table_name)
-    
+
     def insert_incoming_tables(self, incoming_data: Dict[str, pd.DataFrame]) -> None:
         """Inserts incoming data to corresponding tables.
 
@@ -313,18 +321,81 @@ class DWHClient(Client):
             # 1. Load incoming data to corresponding staging tables
             self.insert_to_stg_table(field_name, data)
             
-        # 2. Insert data to DWH dimension tables from staging tables
-            # self.insert_df_to_table(data, dim_table_name)
-            
-
-    def load_from_stg_table_to_dim_table(self, stg_table_name: str, dim_table_name: str) -> None:
-        """Inserts data from staging table to dimension table in required format.
+            # 2. Insert data to DWH dimension tables from staging tables
+            scd2_config = self.scd2_config.get(field_name)
+            if scd2_config is not None:
+                self.insert_from_stg_table_to_dim_table(field_name, **scd2_config)
+    
+    def insert_from_stg_table_to_dim_table(self, field_name: str,
+                                           mapping: Dict[str, str],
+                                           date_col: str,
+                                           stg_pk: str,
+                                           dim_pk: str) -> None:
+        """Inserts data in dimension table in SCD2 format from staging table.
 
         Parameters
         ----------
-        stg_table_name : str
-            Staging table name containing raw data.
-        dim_table_name : str
-            Dimension table name for inserting data.
+        field_name : str
+            Pydantic table schema field name
+        mapping : Dict[str, str]
+            Maps corresponding columns names of staging and dimension table
+        date_col : str
+            Date column name which is used to update effective from/to columns
+        stg_pk : str
+            Staging table primary key column name. Used for join with `dim_pk`
+        dim_pk : str
+            Dimension table primary key column name. Used for join with `stg_pk`
         """
-        pass
+        stg_table_name = None
+        dim_table_name = None
+        query_template = """
+            UPDATE {dim_table_name}
+            SET effective_to = stg."{date_col}",
+                deleted_flg = True
+            FROM {stg_table_name} stg
+            WHERE {dim_table_name}.{dim_pk} = stg.{stg_pk}
+            AND ({differ_string_update})
+            AND {dim_table_name}.deleted_flg = False;
+
+            INSERT INTO {dim_table_name} ({dim_cols_string}, effective_from, effective_to, deleted_flg)
+            SELECT {stg_cols_string}, '3000-01-01', False
+            FROM {stg_table_name} stg
+            LEFT JOIN {dim_table_name} dim
+            ON stg.{stg_pk} = dim.{dim_pk} AND dim.deleted_flg = False
+            WHERE dim.{dim_pk} IS NULL OR ({differ_string_insert});
+        """
+        if hasattr(self.schema.STG, field_name):
+            stg_table_name = self.schema.STG.__getattribute__(field_name)
+        if hasattr(self.schema.DIM, field_name):
+            dim_table_name = self.schema.DIM.__getattribute__(field_name)
+
+        if stg_table_name is not None and dim_table_name is not None:
+
+            dim_cols_string = ", ".join(list(mapping.values()))
+            stg_cols_string = ", ".join(list(map(lambda x: f"stg.{x}", mapping.keys())) + [f"COALESCE(stg.\"{date_col}\", '1900-01-01')"])
+
+            differ_list_update = []
+            differ_list_insert = []
+            for stg_col, dim_col in mapping.items():
+                differ_list_update.append(f"{dim_table_name}.{dim_col}" + " <> " + f"stg.{stg_col}")
+                differ_list_insert.append(f"dim.{dim_col}" + " <> " + f"stg.{stg_col}")
+            differ_string_update = " OR ".join(differ_list_update)
+            differ_string_insert = " OR ".join(differ_list_insert)
+
+            query = query_template.format(
+                dim_table_name=dim_table_name,
+                stg_table_name=stg_table_name,
+                dim_pk=dim_pk,
+                stg_pk=stg_pk,
+                date_col=date_col,
+                dim_cols_string=dim_cols_string,
+                stg_cols_string=stg_cols_string,
+                differ_string_update=differ_string_update,
+                differ_string_insert=differ_string_insert
+            )
+
+            with self.connection.cursor() as cursor:
+                cursor.execute(query)
+                self.connection.commit()
+
+
