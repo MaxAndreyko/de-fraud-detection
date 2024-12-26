@@ -49,7 +49,7 @@ CREATE TABLE IF NOT EXISTS {DIM_cards} (
 
 -- Создание таблицы {FACT_transactions}
 CREATE TABLE IF NOT EXISTS {FACT_transactions} (
-    trans_id VARCHAR(11),
+    trans_id VARCHAR(11) PRIMARY KEY,
     trans_date TIMESTAMP, 
     card_num VARCHAR(20),
     oper_type VARCHAR(8),
