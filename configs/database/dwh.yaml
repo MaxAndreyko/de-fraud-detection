@@ -20,6 +20,19 @@ tables:
   REP:
     fraud: public.maka_rep_fraud
 
+fact_mapping:
+  blacklist:
+    passport: passport_num
+    date: entry_dt
+  transactions:
+    transaction_id: trans_id
+    transaction_date: trans_date
+    amount: amt
+    card_num: card_num
+    oper_type: oper_type
+    oper_result: oper_result
+    terminal: terminal
+
 scd2:
   accounts:
     mapping:
