@@ -39,7 +39,7 @@ if __name__ == "__main__":
     )
 
     # Initialize data warehouse schema
-    dwh_client.create_schema("pattern.ddl")
+    dwh_client.create_schema("main.ddl")
 
     # Insert bank data to tables
     dwh_client.insert_bank_tables(bank_client)
