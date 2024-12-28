@@ -137,6 +137,36 @@ class Client:
         with self.connection.cursor() as cursor:
             cursor.execute("DELETE FROM %s;" % table_name)
             self.connection.commit()
+    
+    def insert_from_table_to_table(self, src_table_name: str, dest_table_name, mapping: Dict[str, str]) -> None:
+        query_template = """
+            INSERT INTO {dest_table_name} ({dest_cols_string})
+            SELECT {src_cols_string}
+            FROM {src_table_name} src
+            WHERE NOT EXISTS (
+            SELECT 1 
+            FROM {dest_table_name} dest
+            WHERE {where_string}
+        );
+        """
+
+        src_cols_string = ", ".join(list(mapping.keys()))
+        dest_cols_string = ", ".join(list(mapping.values()))
+        
+        where_list = []
+        for src_col, dest_col in mapping.items():
+            where_list.append(f"dest.{dest_col} = src.{src_col}")
+        where_string = " AND ".join(where_list)
+
+        query = query_template.format(dest_table_name=dest_table_name,
+                                      dest_cols_string=dest_cols_string,
+                                      src_table_name=src_table_name,
+                                      src_cols_string=src_cols_string,
+                                      where_string=where_string)
+        
+        with self.connection.cursor() as cursor:
+            cursor.execute(query)
+            self.connection.commit()
 
 
 class BankDBClient(Client):
@@ -192,7 +222,8 @@ class DWHClient(Client):
                 password: str,
                 port: str,
                 schema: BaseModel,
-                scd2_config: Dict[str, Dict[str, str]] = None):
+                scd2_config: Dict[str, Dict[str, str]] = None,
+                fact_mapping: Dict[str, Dict[str, str]]= None):
         """Initializes a DWHClient instance for communicating with a data warehouse database.
 
         This constructor sets up the necessary parameters to establish a connection 
@@ -223,6 +254,7 @@ class DWHClient(Client):
                          port=port,
                          schema=schema)
         self.scd2_config = scd2_config
+        self.fact_mapping = fact_mapping
     
     def create_schema(self, ddl_pattern_filepath: str) -> None:
         """Creates empty database schema according to specified DDL script.
@@ -325,6 +357,18 @@ class DWHClient(Client):
             scd2_config = self.scd2_config.get(field_name)
             if scd2_config is not None:
                 self.insert_from_stg_table_to_dim_table(field_name, **scd2_config)
+            
+            # 3. Insert data to DWH fact tables from staging tables
+            fact_mapping = self.fact_mapping.get(field_name)
+            if fact_mapping is not None:
+                stg_table_name, fact_table_name = None, None
+                if hasattr(self.schema.STG, field_name):
+                    stg_table_name = self.schema.STG.__getattribute__(field_name)
+                if hasattr(self.schema.FACT, field_name):
+                    fact_table_name = self.schema.FACT.__getattribute__(field_name)
+                if stg_table_name is not None and fact_table_name is not None:
+                    self.insert_from_table_to_table(stg_table_name, fact_table_name, fact_mapping)
+
     
     def insert_from_stg_table_to_dim_table(self, field_name: str,
                                            mapping: Dict[str, str],
