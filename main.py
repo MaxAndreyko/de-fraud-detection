@@ -34,7 +34,8 @@ if __name__ == "__main__":
         password=os.getenv("DB_PASS"),
         port=os.getenv("DB_PORT"),
         schema=dwh_schema,
-        scd2_config=dwh_cfg["scd2"]
+        scd2_config=dwh_cfg["scd2"],
+        fact_mapping=dwh_cfg["fact_mapping"]
     )
 
     # Initialize data warehouse schema
