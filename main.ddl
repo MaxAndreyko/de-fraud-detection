@@ -1,7 +1,7 @@
 -- Создание DIM таблиц
 
--- Создание таблицы public.maka_dwh_dim_terminals_hist
-CREATE TABLE IF NOT EXISTS public.maka_dwh_dim_terminals_hist (
+-- Создание таблицы {DIM_terminals}
+CREATE TABLE IF NOT EXISTS {DIM_terminals} (
     terminal_id VARCHAR(5),
     terminal_type VARCHAR(3),
     terminal_city VARCHAR(20),
@@ -11,8 +11,8 @@ CREATE TABLE IF NOT EXISTS public.maka_dwh_dim_terminals_hist (
     deleted_flg BOOLEAN NOT NULL DEFAULT FALSE
 );
 
--- Создание таблицы public.maka_dwh_dim_clients_hist
-CREATE TABLE IF NOT EXISTS public.maka_dwh_dim_clients_hist (
+-- Создание таблицы {DIM_clients}
+CREATE TABLE IF NOT EXISTS {DIM_clients} (
     client_id VARCHAR(10),
     last_name VARCHAR(20),
     first_name VARCHAR(20),
@@ -26,8 +26,8 @@ CREATE TABLE IF NOT EXISTS public.maka_dwh_dim_clients_hist (
     deleted_flg BOOLEAN NOT NULL DEFAULT FALSE
 );
 
--- Создание таблицы public.maka_dwh_dim_accounts_hist
-CREATE TABLE IF NOT EXISTS public.maka_dwh_dim_accounts_hist (
+-- Создание таблицы {DIM_accounts}
+CREATE TABLE IF NOT EXISTS {DIM_accounts} (
     account_num VARCHAR(20),
     valid_to DATE, 
     client VARCHAR(10),
@@ -36,8 +36,8 @@ CREATE TABLE IF NOT EXISTS public.maka_dwh_dim_accounts_hist (
     deleted_flg BOOLEAN NOT NULL DEFAULT FALSE
 );
 
--- Создание таблицы public.maka_dwh_dim_cards_hist
-CREATE TABLE IF NOT EXISTS public.maka_dwh_dim_cards_hist (
+-- Создание таблицы {DIM_cards}
+CREATE TABLE IF NOT EXISTS {DIM_cards} (
     cards_num VARCHAR(20),
     account_num VARCHAR(20),
     effective_from DATE NOT NULL,
@@ -47,8 +47,8 @@ CREATE TABLE IF NOT EXISTS public.maka_dwh_dim_cards_hist (
 
 -- Создание FACT таблиц
 
--- Создание таблицы public.maka_dwh_fact_transactions
-CREATE TABLE IF NOT EXISTS public.maka_dwh_fact_transactions (
+-- Создание таблицы {FACT_transactions}
+CREATE TABLE IF NOT EXISTS {FACT_transactions} (
     trans_id VARCHAR(11) PRIMARY KEY,
     trans_date TIMESTAMP, 
     card_num VARCHAR(20),
@@ -58,26 +58,26 @@ CREATE TABLE IF NOT EXISTS public.maka_dwh_fact_transactions (
     terminal VARCHAR(5)
 );
 
--- Создание таблицы public.maka_dwh_fact_passport_blacklist
-CREATE TABLE IF NOT EXISTS public.maka_dwh_fact_passport_blacklist (
+-- Создание таблицы {FACT_blacklist}
+CREATE TABLE IF NOT EXISTS {FACT_blacklist} (
     passport_num VARCHAR(15),
     entry_dt DATE
 );
 
--- Создание таблицы public.maka_rep_fraud
-CREATE TABLE IF NOT EXISTS public.maka_rep_fraud (
+-- Создание таблицы {REP_fraud}
+CREATE TABLE IF NOT EXISTS {REP_fraud} (
     event_dt TIMESTAMP, 
     passport VARCHAR(15),
     fio VARCHAR(65),
     phone VARCHAR(16),
-    event_type VARCHAR(20),
+    event_type VARCHAR(50),
     report_dt TIMESTAMP 
 );
 
 -- Создание STG таблиц
 
--- Таблица public.maka_stg_transactions
-CREATE TABLE IF NOT EXISTS public.maka_stg_transactions (
+-- Таблица {STG_transactions}
+CREATE TABLE IF NOT EXISTS {STG_transactions} (
     transaction_id VARCHAR(11) PRIMARY KEY,
     transaction_date TIMESTAMP, 
     amount DECIMAL,
@@ -87,8 +87,8 @@ CREATE TABLE IF NOT EXISTS public.maka_stg_transactions (
     terminal VARCHAR(5)
 );
 
--- Таблица public.maka_stg_terminals
-CREATE TABLE IF NOT EXISTS public.maka_stg_terminals (
+-- Таблица {STG_terminals}
+CREATE TABLE IF NOT EXISTS {STG_terminals} (
     terminal_id VARCHAR(5),
     terminal_type VARCHAR(3),
     terminal_city VARCHAR(20),
@@ -96,14 +96,14 @@ CREATE TABLE IF NOT EXISTS public.maka_stg_terminals (
     date DATE
 );
 
--- Таблица public.maka_stg_blacklist
-CREATE TABLE IF NOT EXISTS public.maka_stg_blacklist (
+-- Таблица {STG_blacklist}
+CREATE TABLE IF NOT EXISTS {STG_blacklist} (
     date DATE,
     passport VARCHAR(15)
 );
 
--- Таблица public.maka_stg_clients
-CREATE TABLE IF NOT EXISTS public.maka_stg_clients (
+-- Таблица {STG_clients}
+CREATE TABLE IF NOT EXISTS {STG_clients} (
     client_id VARCHAR(10) PRIMARY KEY,
     last_name VARCHAR(20),
     first_name VARCHAR(20),
@@ -116,8 +116,8 @@ CREATE TABLE IF NOT EXISTS public.maka_stg_clients (
     update_dt TIMESTAMP
 );
 
--- Таблица public.maka_stg_accounts
-CREATE TABLE IF NOT EXISTS public.maka_stg_accounts (
+-- Таблица {STG_accounts}
+CREATE TABLE IF NOT EXISTS {STG_accounts} (
     account VARCHAR(20) PRIMARY KEY,
     valid_to DATE,   
     client VARCHAR(10),
@@ -125,8 +125,8 @@ CREATE TABLE IF NOT EXISTS public.maka_stg_accounts (
     update_dt TIMESTAMP
 );
 
--- Таблица public.maka_stg_cards
-CREATE TABLE IF NOT EXISTS public.maka_stg_cards (
+-- Таблица {STG_cards}
+CREATE TABLE IF NOT EXISTS {STG_cards} (
     card_num VARCHAR(20) PRIMARY KEY,
     account VARCHAR(20),
     create_dt TIMESTAMP,
