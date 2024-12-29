@@ -404,7 +404,7 @@ class DWHClient(Client):
             AND {dim_table_name}.deleted_flg = False;
 
             INSERT INTO {dim_table_name} ({dim_cols_string}, effective_from, effective_to, deleted_flg)
-            SELECT {stg_cols_string}, {max_dt}, False
+            SELECT {stg_cols_string}, '{max_dt}', False
             FROM {stg_table_name} stg
             LEFT JOIN {dim_table_name} dim
             ON stg.{stg_pk} = dim.{dim_pk} AND dim.deleted_flg = False
@@ -418,7 +418,7 @@ class DWHClient(Client):
         if stg_table_name is not None and dim_table_name is not None:
 
             dim_cols_string = ", ".join(list(mapping.values()))
-            stg_cols_string = ", ".join(list(map(lambda x: f"stg.{x}", mapping.keys())) + [f"COALESCE(stg.\"{date_col}\", {self.min_dt})"])
+            stg_cols_string = ", ".join(list(map(lambda x: f"stg.{x}", mapping.keys())) + [f"COALESCE(stg.\"{date_col}\", '{self.min_dt}')"])
 
             differ_list_update = []
             differ_list_insert = []
