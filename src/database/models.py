@@ -36,8 +36,12 @@ class STGTableNames(BaseModel):
 class REPTableNames(BaseModel):
     fraud: str = Field(...)
 
+class METATableNames(BaseModel):
+    meta: str = Field(...)
+
 class DWHSchema(Schema):
     DIM: DIMTableNames   # Dimension table names
     FACT: FACTTableNames # Fact table names
     STG: STGTableNames   # Staging table names
     REP: REPTableNames   # Report table names
+    META: METATableNames   # Report table names
