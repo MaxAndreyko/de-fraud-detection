@@ -132,3 +132,28 @@ CREATE TABLE IF NOT EXISTS {STG_cards} (
     create_dt TIMESTAMP,
     update_dt TIMESTAMP
 );
+
+-- Создание таблицы метаданных
+
+CREATE TABLE IF NOT EXISTS {META} (
+    table_name VARCHAR(30),
+    max_update_dt TIMESTAMP(0)
+);
+
+-- Вставка значений по-умолчанию в таблицу метаданных
+
+INSERT INTO {META} (table_name, max_update_dt)
+SELECT new_tables.table_name, to_timestamp('1900-01-01', 'YYYY-MM-DD')
+FROM (
+    SELECT '{STG_transactions}' AS table_name UNION ALL
+    SELECT '{STG_terminals}' UNION ALL
+    SELECT '{STG_blacklist}' UNION ALL
+    SELECT '{STG_clients}' UNION ALL
+    SELECT '{STG_accounts}' UNION ALL
+    SELECT '{STG_cards}'
+) AS new_tables
+WHERE NOT EXISTS (
+    SELECT 1 
+    FROM {META} 
+    WHERE table_name = new_tables.table_name
+);
