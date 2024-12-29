@@ -51,3 +51,6 @@ if __name__ == "__main__":
 
     # Insert incoming data to tables
     dwh_client.insert_incoming_tables(incoming_data)
+
+    # Report frauds
+    dwh_client.report_frauds()
