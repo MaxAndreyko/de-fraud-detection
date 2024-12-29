@@ -77,7 +77,8 @@ def get_incoming_data(source_dir: str, file_patterns: Dict[str, str], csv_sep: s
                     dataframes[date].update({table_name: curr_data})
                 else:
                     dataframes[date] = {table_name: curr_data}
-
+    dataframes = dict(sorted(dataframes.items(), key=lambda x: x[0]))
+    
     return dataframes
     
 def prep_incoming_data(data: Dict[datetime, Dict[str, pd.DataFrame]], prep_config: Dict[str, Dict]) -> List[Dict[str, pd.DataFrame]]:
