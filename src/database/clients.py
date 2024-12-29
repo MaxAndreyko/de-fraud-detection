@@ -255,6 +255,8 @@ class DWHClient(Client):
                          schema=schema)
         self.scd2_config = scd2_config
         self.fact_mapping = fact_mapping
+        self.max_dt = "3000-01-01"
+        self.min_dt = "1900-01-01"
     
     def create_schema(self, ddl_pattern_filepath: str) -> None:
         """Creates empty database schema according to specified DDL script.
@@ -402,7 +404,7 @@ class DWHClient(Client):
             AND {dim_table_name}.deleted_flg = False;
 
             INSERT INTO {dim_table_name} ({dim_cols_string}, effective_from, effective_to, deleted_flg)
-            SELECT {stg_cols_string}, '3000-01-01', False
+            SELECT {stg_cols_string}, {max_dt}, False
             FROM {stg_table_name} stg
             LEFT JOIN {dim_table_name} dim
             ON stg.{stg_pk} = dim.{dim_pk} AND dim.deleted_flg = False
@@ -416,7 +418,7 @@ class DWHClient(Client):
         if stg_table_name is not None and dim_table_name is not None:
 
             dim_cols_string = ", ".join(list(mapping.values()))
-            stg_cols_string = ", ".join(list(map(lambda x: f"stg.{x}", mapping.keys())) + [f"COALESCE(stg.\"{date_col}\", '1900-01-01')"])
+            stg_cols_string = ", ".join(list(map(lambda x: f"stg.{x}", mapping.keys())) + [f"COALESCE(stg.\"{date_col}\", {self.min_dt})"])
 
             differ_list_update = []
             differ_list_insert = []
@@ -435,7 +437,8 @@ class DWHClient(Client):
                 dim_cols_string=dim_cols_string,
                 stg_cols_string=stg_cols_string,
                 differ_string_update=differ_string_update,
-                differ_string_insert=differ_string_insert
+                differ_string_insert=differ_string_insert,
+                max_dt=self.max_dt
             )
 
             with self.connection.cursor() as cursor:
