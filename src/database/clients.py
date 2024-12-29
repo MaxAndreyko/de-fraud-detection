@@ -441,5 +441,208 @@ class DWHClient(Client):
             with self.connection.cursor() as cursor:
                 cursor.execute(query)
                 self.connection.commit()
+    
+    def report_frauds(self) -> None:
+        """Manages frauds reporting functions calling
+        """
+        self.report_blacklist_fraud()
+        self.report_invalid_contract_fraud()
+        self.report_transactions_in_different_cities_fraud()
+        self.report_amount_guessing_fraud()
 
+    def report_blacklist_fraud(self) -> None:
+        query = """
+        INSERT INTO public.maka_rep_fraud (event_dt, passport, fio, phone, event_type, report_dt)
+        SELECT 
+            t.trans_date AS event_dt,
+            cl.passport_num AS passport,
+            CONCAT(cl.last_name, ' ', cl.first_name, ' ', cl.patronymic) AS fio,
+            cl.phone AS phone,
+            'Заблокированный или просроченный паспорт' AS event_type,
+            CURRENT_DATE AS report_dt
+        FROM public.maka_dwh_fact_transactions t
+        JOIN public.maka_dwh_dim_cards_hist c
+            ON TRIM(t.card_num) = TRIM(c.cards_num) AND c.deleted_flg = False
+        JOIN public.maka_dwh_dim_accounts_hist a
+            ON c.account_num = a.account_num AND c.deleted_flg = False
+        JOIN public.maka_dwh_dim_clients_hist cl
+            ON a.client = cl.client_id AND c.deleted_flg = False
+        JOIN public.maka_dwh_fact_passport_blacklist p
+            ON cl.passport_num = p.passport_num
+        WHERE (p.entry_dt <= t.trans_date OR cl.passport_valid_to <= t.trans_date);
+        """
+        self.logger.info("Checking blacklist frauds ...")
+        with self.connection.cursor() as cursor:
+            cursor.execute(query)
+            self.connection.commit()
+        self.logger.info("Complete")
 
+    def report_invalid_contract_fraud(self) -> None:
+        query = """
+        INSERT INTO public.maka_rep_fraud (event_dt, passport, fio, phone, event_type, report_dt)
+        SELECT 
+            t.trans_date AS event_dt,
+            cl.passport_num AS passport,
+            CONCAT(cl.last_name, ' ', cl.first_name, ' ', cl.patronymic) AS fio,
+            cl.phone AS phone,
+            'Недействующий договор' AS event_type,
+            CURRENT_DATE AS report_dt
+        FROM public.maka_dwh_fact_transactions t
+        JOIN public.maka_dwh_dim_cards_hist c
+            ON TRIM(t.card_num) = TRIM(c.cards_num) AND c.deleted_flg = False
+        JOIN public.maka_dwh_dim_accounts_hist a
+            ON c.account_num = a.account_num AND a.deleted_flg = False
+        JOIN public.maka_dwh_dim_clients_hist cl
+            ON a.client = cl.client_id AND cl.deleted_flg = False
+        WHERE a.valid_to <= t.trans_date;
+        """
+        self.logger.info("Checking invalid contract frauds ...")
+        with self.connection.cursor() as cursor:
+            cursor.execute(query)
+            self.connection.commit()
+        self.logger.info("Complete")
+
+    def report_transactions_in_different_cities_fraud(self) -> None:
+        query = """
+        WITH unique_cards AS (
+            SELECT 
+                a.client AS client_id,
+                c.cards_num
+            FROM public.maka_dwh_dim_cards_hist c
+            JOIN public.maka_dwh_dim_accounts_hist a ON c.account_num = a.account_num AND a.deleted_flg = False
+            JOIN public.maka_dwh_dim_clients_hist cl ON a.client = cl.client_id AND cl.deleted_flg = False
+            GROUP BY a.client, c.cards_num
+        ),
+        filtered_transactions AS (
+            SELECT 
+                t.trans_date,
+                t.card_num,
+                term.terminal_city,
+                cl.passport_num,
+                CONCAT(cl.last_name, ' ', cl.first_name, ' ', cl.patronymic) AS fio,
+                cl.phone
+            FROM public.maka_dwh_fact_transactions t
+            JOIN public.maka_dwh_dim_terminals_hist term ON t.terminal = term.terminal_id AND term.deleted_flg = False
+            JOIN unique_cards uc ON TRIM(t.card_num) = TRIM(uc.cards_num)
+            JOIN public.maka_dwh_dim_cards_hist c ON TRIM(t.card_num) = TRIM(c.cards_num) AND c.deleted_flg = False
+            JOIN public.maka_dwh_dim_accounts_hist a ON c.account_num = a.account_num AND a.deleted_flg = False
+            JOIN public.maka_dwh_dim_clients_hist cl ON a.client = cl.client_id AND cl.deleted_flg = FALSE
+        )
+        INSERT INTO public.maka_rep_fraud (event_dt, passport, fio, phone, event_type, report_dt)
+        SELECT DISTINCT 
+            t1.trans_date AS event_dt,
+            t1.passport_num AS passport,
+            t1.fio,
+            t1.phone,
+            'Операции в разных городах за короткое время' AS event_type,
+            CURRENT_DATE as report_dt
+        FROM filtered_transactions t1
+        JOIN filtered_transactions t2
+            ON t1.passport_num = t2.passport_num
+            AND t1.terminal_city != t2.terminal_city 
+            AND ABS(EXTRACT(EPOCH FROM t2.trans_date) - EXTRACT(EPOCH FROM t1.trans_date)) <= 3600;
+        """
+        self.logger.info("Checking transaction in different cities frauds ...")
+        with self.connection.cursor() as cursor:
+            cursor.execute(query)
+            self.connection.commit()
+        self.logger.info("Complete")
+
+    def report_amount_guessing_fraud(self) -> None:
+        query = """
+        WITH RECURSIVE ordered_transactions AS (
+            SELECT 
+                TRIM(t.card_num) AS card_num, 
+                t.trans_date, 
+                t.amt, 
+                t.oper_result,
+                ROW_NUMBER() OVER (PARTITION BY TRIM(t.card_num) ORDER BY t.trans_date) AS rn
+            FROM public.maka_dwh_fact_transactions t
+            JOIN public.maka_dwh_dim_cards_hist c
+                ON TRIM(t.card_num) = TRIM(c.cards_num) AND c.deleted_flg = False
+        ), 
+        suspicious_sequences AS (
+            SELECT 
+                card_num, 
+                trans_date AS start_date,
+                trans_date AS end_date,
+                amt,
+                oper_result,
+                rn,
+                1 AS sequence_length,
+                CASE WHEN oper_result = 'REJECT' THEN 1 ELSE 0 END AS reject_count
+            FROM ordered_transactions
+            UNION ALL
+            SELECT 
+                t.card_num, 
+                s.start_date,
+                t.trans_date,
+                t.amt,
+                t.oper_result,
+                t.rn,
+                s.sequence_length + 1,
+                s.reject_count + CASE WHEN t.oper_result = 'REJECT' THEN 1 ELSE 0 END
+            FROM ordered_transactions t
+            JOIN suspicious_sequences s
+                ON t.card_num = s.card_num AND t.rn = s.rn + 1
+            WHERE t.trans_date - s.start_date <= INTERVAL '20 MINUTES'
+                AND t.amt < s.amt
+        ),
+        final_suspicious_transactions AS (
+            SELECT DISTINCT
+                card_num,
+                start_date,
+                end_date
+            FROM suspicious_sequences
+            WHERE sequence_length >= 4
+                AND reject_count >= 3
+                AND oper_result = 'SUCCESS'
+        ),
+        filtered_suspicious_transactions AS (
+            SELECT 
+                o.card_num, 
+                o.trans_date, 
+                o.oper_result,
+                ROW_NUMBER() OVER (PARTITION BY o.card_num, f.start_date ORDER BY o.trans_date DESC) AS row_desc
+            FROM ordered_transactions o
+            JOIN final_suspicious_transactions f
+                ON o.card_num = f.card_num
+            WHERE o.trans_date BETWEEN f.start_date AND f.end_date
+        ),
+        distinct_suspicious_transactions AS (
+            SELECT 
+                card_num,
+                trans_date,
+                oper_result
+            FROM filtered_suspicious_transactions
+            WHERE oper_result = 'SUCCESS' AND row_desc = 1
+            UNION
+            SELECT 
+                card_num,
+                trans_date,
+                oper_result
+            FROM filtered_suspicious_transactions
+            WHERE oper_result = 'REJECT'
+        )
+        INSERT INTO public.maka_rep_fraud (event_dt, passport, fio, phone, event_type, report_dt)
+        SELECT 
+            dst.trans_date AS event_dt,
+            cl.passport_num AS passport,
+            CONCAT(cl.last_name, ' ', cl.first_name, ' ', cl.patronymic) AS fio,
+            cl.phone AS phone,
+            'Попытка подбора суммы' AS event_type,
+            CURRENT_DATE AS report_dt
+        FROM distinct_suspicious_transactions dst
+        JOIN public.maka_dwh_dim_cards_hist c
+            ON TRIM(dst.card_num) = TRIM(c.cards_num) AND c.deleted_flg = False
+        JOIN public.maka_dwh_dim_accounts_hist a
+            ON c.account_num = a.account_num AND a.deleted_flg = False
+        JOIN public.maka_dwh_dim_clients_hist cl
+            ON a.client = cl.client_id AND cl.deleted_flg = False
+        ORDER BY dst.trans_date;
+        """
+        self.logger.info("Checking amount guessing frauds ...")
+        with self.connection.cursor() as cursor:
+            cursor.execute(query)
+            self.connection.commit()
+        self.logger.info("Complete")
