@@ -30,8 +30,8 @@ def get_filepaths_by_pattern(source_dir: str, pattern: str) -> List[str]:
     return matched_filepaths
 
 
-def get_incoming_data(source_dir: str, file_patterns: Dict[str, str], csv_sep: str = ";") -> Dict[str, pd.DataFrame]:
-    """Collects and consolidates incoming data from files matching specified patterns.
+def get_incoming_data(source_dir: str, file_patterns: Dict[str, str], csv_sep: str = ";") -> Dict[datetime, Dict[str, pd.DataFrame]]:
+    """Collects and consolidates incoming data from files that match specified patterns.
 
     This function scans a specified directory for files that match the provided patterns,
     reads the data into pandas DataFrames, and consolidates them into a single DataFrame 
@@ -50,9 +50,11 @@ def get_incoming_data(source_dir: str, file_patterns: Dict[str, str], csv_sep: s
 
     Returns
     -------
-    Dict[str, pd.DataFrame]
-        A dictionary where each key is a table name and each value is a pandas DataFrame 
-        containing the consolidated data read from the matching files.
+    Dict[datetime, Dict[str, pd.DataFrame]]
+        A dictionary where each key is a date (extracted from the filenames) and each value 
+        is another dictionary. The inner dictionary maps table names to their corresponding 
+        concatenated pandas DataFrames. This structure facilitates easy access to data by 
+        date and table name.
     """
 
 
@@ -68,16 +70,17 @@ def get_incoming_data(source_dir: str, file_patterns: Dict[str, str], csv_sep: s
             elif filepath.endswith(".txt") or filepath.endswith(".csv"):
                 curr_data = pd.read_csv(filepath, header=0, sep=csv_sep)
             if curr_data is not None:
+                date = get_date_from_string(filepath)
                 curr_data["path"] = [filepath] * len(curr_data) # Add column with path for further processing
-                read_data = dataframes.get(table_name)
-                if isinstance(read_data, pd.DataFrame):
-                    dataframes[table_name] = pd.concat([read_data, curr_data], axis=0)
+                read_data = dataframes.get(date)
+                if read_data is not None:
+                    dataframes[date].update({table_name: curr_data})
                 else:
-                    dataframes[table_name] = curr_data
+                    dataframes[date] = {table_name: curr_data}
 
     return dataframes
     
-def prep_incoming_data(data: Dict[str, pd.DataFrame], prep_config: Dict[str, Dict]) -> List[Dict[str, pd.DataFrame]]:
+def prep_incoming_data(data: Dict[datetime, Dict[str, pd.DataFrame]], prep_config: Dict[str, Dict]) -> List[Dict[str, pd.DataFrame]]:
     """Prepares incoming data by applying specified cleaning configurations.
 
     This function iterates over a dictionary of DataFrames and applies preparation 
@@ -86,9 +89,11 @@ def prep_incoming_data(data: Dict[str, pd.DataFrame], prep_config: Dict[str, Dic
 
     Parameters
     ----------
-    data : Dict[str, pd.DataFrame]
-        A dictionary where keys are table names and values are pandas DataFrames 
-        containing the incoming data to be prepared.
+    data : Dict[datetime, Dict[str, pd.DataFrame]]
+        A nested dictionary where the outer keys are dates (of type datetime), 
+        and the inner keys are table names. The values are pandas DataFrames 
+        containing the incoming data that needs to be prepared.
+
     prep_config : Dict[str, Dict]
         A dictionary containing preparation configurations for each table. Each key 
         corresponds to a table name and maps to another dictionary with preparation 
@@ -97,22 +102,24 @@ def prep_incoming_data(data: Dict[str, pd.DataFrame], prep_config: Dict[str, Dic
     Returns
     -------
     List[Dict[str, pd.DataFrame]]
-        A list of dictionaries where each dictionary contains the cleaned DataFrames 
-        mapped by their respective table names.
+        A list of dictionaries where each dictionary corresponds to a date from the input 
+        data and contains the processed DataFrames for each table. Each DataFrame has been 
+        modified according to the specified preparation configurations.
     """
 
-    for table_name, df in data.items():
-        table_prep_config = prep_config.get(table_name)
-        if table_prep_config is not None:
-            numeric_cols = table_prep_config.get("numeric_cols")
-            add_cols = table_prep_config.get("add_cols")
-            rm_cols = table_prep_config.get("rm_cols")
-            if numeric_cols is not None:
-                df = clean_numeric_columns(df, numeric_cols)
-            if add_cols is not None:
-                df = add_columns(df, add_cols)
-            if rm_cols is not None:
-                df = remove_columns(df, rm_cols)
+    for _, tables in data.items():
+        for table_name, df in tables.items():
+            table_prep_config = prep_config.get(table_name)
+            if table_prep_config is not None:
+                numeric_cols = table_prep_config.get("numeric_cols")
+                add_cols = table_prep_config.get("add_cols")
+                rm_cols = table_prep_config.get("rm_cols")
+                if numeric_cols is not None:
+                    df = clean_numeric_columns(df, numeric_cols)
+                if add_cols is not None:
+                    df = add_columns(df, add_cols)
+                if rm_cols is not None:
+                    df = remove_columns(df, rm_cols)
             
     return data
 
