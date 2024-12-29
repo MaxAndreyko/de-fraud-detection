@@ -285,6 +285,7 @@ class DWHClient(Client):
             STG_clients=self.schema.STG.clients,
             STG_accounts=self.schema.STG.accounts,
             STG_cards=self.schema.STG.cards,
+            META=self.schema.META.meta,
         )
             
         with self.connection.cursor() as cursor:
