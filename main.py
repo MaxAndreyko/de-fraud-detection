@@ -49,8 +49,10 @@ if __name__ == "__main__":
 
     incoming_data = prep_incoming_data(incoming_data, os_cfg["preprocess"])
 
-    # Insert incoming data to tables
-    dwh_client.insert_incoming_tables(incoming_data)
+    for date, data in incoming_data.items():
 
-    # Report frauds
-    dwh_client.report_frauds()
+        # Insert incoming data to tables
+        dwh_client.insert_incoming_tables(data, date)
+
+        # Report frauds
+        dwh_client.report_frauds()
