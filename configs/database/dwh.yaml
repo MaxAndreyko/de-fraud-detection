@@ -20,6 +20,9 @@ tables:
   REP:
     fraud: public.maka_rep_fraud
 
+  META:
+    meta: public.maka_meta_info
+
 fact_mapping:
   blacklist:
     passport: passport_num
