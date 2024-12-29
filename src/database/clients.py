@@ -491,7 +491,7 @@ class DWHClient(Client):
         self.report_amount_guessing_fraud(report_date)
 
     def report_blacklist_fraud(self, report_date: datetime = None) -> None:
-        query = """
+        query_template = """
         INSERT INTO public.maka_rep_fraud (event_dt, passport, fio, phone, event_type, report_dt)
         SELECT 
             t.trans_date AS event_dt,
@@ -509,16 +509,25 @@ class DWHClient(Client):
             ON a.client = cl.client_id AND c.deleted_flg = False
         JOIN public.maka_dwh_fact_passport_blacklist p
             ON cl.passport_num = p.passport_num
-        WHERE (p.entry_dt <= t.trans_date OR cl.passport_valid_to <= t.trans_date);
+        WHERE (p.entry_dt <= t.trans_date OR cl.passport_valid_to <= t.trans_date)
+        AND t.trans_date >= (
+            SELECT MAX(max_update_dt) 
+            FROM {meta_table_name} 
+            WHERE table_name = '{date_ref_table_name}'
+        );
         """
         self.logger.info("Checking blacklist frauds ...")
         with self.connection.cursor() as cursor:
+            query = query_template.format(
+                meta_table_name=self.schema.META.meta,
+                date_ref_table_name=self.schema.STG.transactions
+                                          )
             cursor.execute(query)
             self.connection.commit()
         self.logger.info("Complete")
 
     def report_invalid_contract_fraud(self, report_date: datetime = None) -> None:
-        query = """
+        query_template = """
         INSERT INTO public.maka_rep_fraud (event_dt, passport, fio, phone, event_type, report_dt)
         SELECT 
             t.trans_date AS event_dt,
@@ -534,16 +543,25 @@ class DWHClient(Client):
             ON c.account_num = a.account_num AND a.deleted_flg = False
         JOIN public.maka_dwh_dim_clients_hist cl
             ON a.client = cl.client_id AND cl.deleted_flg = False
-        WHERE a.valid_to <= t.trans_date;
+        WHERE a.valid_to <= t.trans_date
+        AND t.trans_date >= (
+            SELECT MAX(max_update_dt) 
+            FROM {meta_table_name} 
+            WHERE table_name = '{date_ref_table_name}'
+        );
         """
         self.logger.info("Checking invalid contract frauds ...")
         with self.connection.cursor() as cursor:
+            query = query_template.format(
+            meta_table_name=self.schema.META.meta,
+            date_ref_table_name=self.schema.STG.transactions
+                                        )
             cursor.execute(query)
             self.connection.commit()
         self.logger.info("Complete")
 
     def report_transactions_in_different_cities_fraud(self, report_date: datetime = None) -> None:
-        query = """
+        query_template = """
         WITH unique_cards AS (
             SELECT 
                 a.client AS client_id,
@@ -580,16 +598,25 @@ class DWHClient(Client):
         JOIN filtered_transactions t2
             ON t1.passport_num = t2.passport_num
             AND t1.terminal_city != t2.terminal_city 
-            AND ABS(EXTRACT(EPOCH FROM t2.trans_date) - EXTRACT(EPOCH FROM t1.trans_date)) <= 3600;
+            AND ABS(EXTRACT(EPOCH FROM t2.trans_date) - EXTRACT(EPOCH FROM t1.trans_date)) <= 3600
+        WHERE t1.trans_date >= (
+            SELECT MAX(max_update_dt) 
+            FROM {meta_table_name} 
+            WHERE table_name = '{date_ref_table_name}'
+        );
         """
         self.logger.info("Checking transaction in different cities frauds ...")
         with self.connection.cursor() as cursor:
+            query = query_template.format(
+            meta_table_name=self.schema.META.meta,
+            date_ref_table_name=self.schema.STG.transactions
+                                        )
             cursor.execute(query)
             self.connection.commit()
         self.logger.info("Complete")
 
     def report_amount_guessing_fraud(self, report_date: datetime = None) -> None:
-        query = """
+        query_template = """
         WITH RECURSIVE ordered_transactions AS (
             SELECT 
                 TRIM(t.card_num) AS card_num, 
@@ -600,6 +627,11 @@ class DWHClient(Client):
             FROM public.maka_dwh_fact_transactions t
             JOIN public.maka_dwh_dim_cards_hist c
                 ON TRIM(t.card_num) = TRIM(c.cards_num) AND c.deleted_flg = False
+            WHERE t.trans_date >= (
+                SELECT MAX(max_update_dt) 
+                FROM {meta_table_name} 
+                WHERE table_name = '{date_ref_table_name}'
+            )
         ), 
         suspicious_sequences AS (
             SELECT 
@@ -683,6 +715,10 @@ class DWHClient(Client):
         """
         self.logger.info("Checking amount guessing frauds ...")
         with self.connection.cursor() as cursor:
+            query = query_template.format(
+            meta_table_name=self.schema.META.meta,
+            date_ref_table_name=self.schema.STG.transactions
+                                        )
             cursor.execute(query)
             self.connection.commit()
         self.logger.info("Complete")
