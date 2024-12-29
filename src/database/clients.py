@@ -2,6 +2,7 @@ import logging
 from pydantic import BaseModel
 from typing import Dict, List
 import pandas as pd
+from datetime import datetime
 
 import psycopg2
 from psycopg2.extras import execute_batch
@@ -340,9 +341,36 @@ class DWHClient(Client):
                 scd2_config = self.scd2_config.get(dim_field_name)
                 if scd2_config is not None:
                     self.insert_from_stg_table_to_dim_table(dim_field_name, **scd2_config)
-        
 
-    def insert_incoming_tables(self, incoming_data: Dict[str, pd.DataFrame]) -> None:
+
+    def update_staging_timestamp_in_meta_table(self, upd_date: datetime, field_name: str) -> None:
+        """Updates timestamp for staging table.
+
+        Parameters
+        ----------
+        upd_date : datetime
+            Update date value.
+        field_name: str
+            Pydantic field name of staging table
+        """
+        query_template = """
+        UPDATE {meta_table_name}
+        SET max_update_dt = to_timestamp('{upd_timestamp}', 'YYYY-MM-DD')
+        WHERE table_name = '{stg_table_name}';
+        """
+        if hasattr(self.schema.STG, field_name):
+            stg_table_name = self.schema.STG.__getattribute__(field_name)
+            query = query_template.format(
+                meta_table_name=self.schema.META.meta,
+                stg_table_name=stg_table_name,
+                upd_timestamp=upd_date.strftime("%Y-%m-%d")
+            )
+            with self.connection.cursor() as cursor:
+                cursor.execute(query)
+                self.connection.commit()
+            
+
+    def insert_incoming_tables(self, incoming_data: Dict[str, pd.DataFrame], date: datetime) -> None:
         """Inserts incoming data to corresponding tables.
 
         Parameters
@@ -355,6 +383,9 @@ class DWHClient(Client):
 
             # 1. Load incoming data to corresponding staging tables
             self.insert_to_stg_table(field_name, data)
+
+            # 1.1 Update date of incoming data in meta table
+            self.update_staging_timestamp_in_meta_table(date, field_name)
             
             # 2. Insert data to DWH dimension tables from staging tables
             scd2_config = self.scd2_config.get(field_name)
@@ -446,15 +477,20 @@ class DWHClient(Client):
                 cursor.execute(query)
                 self.connection.commit()
     
-    def report_frauds(self) -> None:
+    def report_frauds(self, report_date: datetime = None) -> None:
         """Manages frauds reporting functions calling
+        
+        Parameters
+        ----------
+        report_date : datetime
+            Report date, default None
         """
-        self.report_blacklist_fraud()
-        self.report_invalid_contract_fraud()
-        self.report_transactions_in_different_cities_fraud()
-        self.report_amount_guessing_fraud()
+        self.report_blacklist_fraud(report_date)
+        self.report_invalid_contract_fraud(report_date)
+        self.report_transactions_in_different_cities_fraud(report_date)
+        self.report_amount_guessing_fraud(report_date)
 
-    def report_blacklist_fraud(self) -> None:
+    def report_blacklist_fraud(self, report_date: datetime = None) -> None:
         query = """
         INSERT INTO public.maka_rep_fraud (event_dt, passport, fio, phone, event_type, report_dt)
         SELECT 
@@ -481,7 +517,7 @@ class DWHClient(Client):
             self.connection.commit()
         self.logger.info("Complete")
 
-    def report_invalid_contract_fraud(self) -> None:
+    def report_invalid_contract_fraud(self, report_date: datetime = None) -> None:
         query = """
         INSERT INTO public.maka_rep_fraud (event_dt, passport, fio, phone, event_type, report_dt)
         SELECT 
@@ -506,7 +542,7 @@ class DWHClient(Client):
             self.connection.commit()
         self.logger.info("Complete")
 
-    def report_transactions_in_different_cities_fraud(self) -> None:
+    def report_transactions_in_different_cities_fraud(self, report_date: datetime = None) -> None:
         query = """
         WITH unique_cards AS (
             SELECT 
@@ -552,7 +588,7 @@ class DWHClient(Client):
             self.connection.commit()
         self.logger.info("Complete")
 
-    def report_amount_guessing_fraud(self) -> None:
+    def report_amount_guessing_fraud(self, report_date: datetime = None) -> None:
         query = """
         WITH RECURSIVE ordered_transactions AS (
             SELECT 
