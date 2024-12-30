@@ -2,7 +2,7 @@ import pandas as pd
 from typing import List, Dict
 from datetime import datetime
 
-from src.os.utils import get_date_from_string, get_filepaths_by_pattern
+from py_scripts.os.utils import get_date_from_string, get_filepaths_by_pattern
 
 
 def get_incoming_data(source_dir: str, file_patterns: Dict[str, str], csv_sep: str = ";") -> Dict[datetime, Dict[str, pd.DataFrame]]:
