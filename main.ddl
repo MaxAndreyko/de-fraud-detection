@@ -17,9 +17,9 @@ CREATE TABLE IF NOT EXISTS {DIM_clients} (
     last_name VARCHAR(20),
     first_name VARCHAR(20),
     patronymic VARCHAR(20),
-    date_of_birth DATE, 
+    date_of_birth DATE,
     passport_num VARCHAR(15),
-    passport_valid_to DATE, 
+    passport_valid_to DATE,
     phone VARCHAR(16),
     effective_from DATE NOT NULL,
     effective_to DATE NOT NULL,
@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS {DIM_clients} (
 -- Создание таблицы {DIM_accounts}
 CREATE TABLE IF NOT EXISTS {DIM_accounts} (
     account_num VARCHAR(20),
-    valid_to DATE, 
+    valid_to DATE,
     client VARCHAR(10),
     effective_from DATE NOT NULL,
     effective_to DATE NOT NULL,
@@ -50,7 +50,7 @@ CREATE TABLE IF NOT EXISTS {DIM_cards} (
 -- Создание таблицы {FACT_transactions}
 CREATE TABLE IF NOT EXISTS {FACT_transactions} (
     trans_id VARCHAR(11) PRIMARY KEY,
-    trans_date TIMESTAMP, 
+    trans_date TIMESTAMP,
     card_num VARCHAR(20),
     oper_type VARCHAR(8),
     amt DECIMAL,
@@ -66,12 +66,12 @@ CREATE TABLE IF NOT EXISTS {FACT_blacklist} (
 
 -- Создание таблицы {REP_fraud}
 CREATE TABLE IF NOT EXISTS {REP_fraud} (
-    event_dt TIMESTAMP, 
+    event_dt TIMESTAMP,
     passport VARCHAR(15),
     fio VARCHAR(65),
     phone VARCHAR(16),
     event_type VARCHAR(50),
-    report_dt TIMESTAMP 
+    report_dt TIMESTAMP
 );
 
 -- Создание STG таблиц
@@ -79,7 +79,7 @@ CREATE TABLE IF NOT EXISTS {REP_fraud} (
 -- Таблица {STG_transactions}
 CREATE TABLE IF NOT EXISTS {STG_transactions} (
     transaction_id VARCHAR(11) PRIMARY KEY,
-    transaction_date TIMESTAMP, 
+    transaction_date TIMESTAMP,
     amount DECIMAL,
     card_num VARCHAR(20),
     oper_type VARCHAR(8),
@@ -108,9 +108,9 @@ CREATE TABLE IF NOT EXISTS {STG_clients} (
     last_name VARCHAR(20),
     first_name VARCHAR(20),
     patronymic VARCHAR(20),
-    date_of_birth DATE,  
-    passport_num VARCHAR(15), 
-    passport_valid_to DATE,   
+    date_of_birth DATE,
+    passport_num VARCHAR(15),
+    passport_valid_to DATE,
     phone VARCHAR(16),
     create_dt TIMESTAMP,
     update_dt TIMESTAMP
@@ -119,7 +119,7 @@ CREATE TABLE IF NOT EXISTS {STG_clients} (
 -- Таблица {STG_accounts}
 CREATE TABLE IF NOT EXISTS {STG_accounts} (
     account VARCHAR(20) PRIMARY KEY,
-    valid_to DATE,   
+    valid_to DATE,
     client VARCHAR(10),
     create_dt TIMESTAMP,
     update_dt TIMESTAMP
@@ -153,7 +153,7 @@ FROM (
     SELECT '{STG_cards}'
 ) AS new_tables
 WHERE NOT EXISTS (
-    SELECT 1 
-    FROM {META} 
+    SELECT 1
+    FROM {META}
     WHERE table_name = new_tables.table_name
 );
