@@ -163,12 +163,6 @@ cython_debug/
 
 data/**
 !data/.gitkeep
-!data/*/
-!data/*/.gitkeep
-!data/*/README.md
-!data/*/*/
-!data/*/*/.gitkeep
-!data/*/*/README.md
-!data/*/*/*/
-!data/*/*/*/.gitkeep
-!data/*/*/*/README.md
+
+archive/**
+!archive/.gitkeep
