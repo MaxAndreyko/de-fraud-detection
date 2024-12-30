@@ -3,6 +3,7 @@ from dotenv import load_dotenv, find_dotenv
 import yaml
 
 from src.os.read import get_incoming_data, prep_incoming_data
+from src.os.utils import archive_files_by_patterns
 from src.database.models import DWHSchema, BankSchema
 from src.database.clients import DWHClient, BankDBClient
 
@@ -56,3 +57,6 @@ if __name__ == "__main__":
 
         # Report frauds
         dwh_client.report_frauds()
+    
+    # Archive processed files
+    archive_files_by_patterns(os_cfg["data_dir"], os_cfg["archive_dir"], os_cfg["patterns"])
