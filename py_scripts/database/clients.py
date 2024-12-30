@@ -8,6 +8,8 @@ import psycopg2
 from psycopg2.extras import execute_batch
 from psycopg2.extensions import connection as Connection
 
+from py_scripts.database.models import DWHSchema, BankSchema
+
 class Client:
     """Base Client class.
     
@@ -181,7 +183,7 @@ class BankDBClient(Client):
                 user: str,
                 password: str,
                 port: str,
-                schema: BaseModel):
+                schema: BankSchema):
         """Initializes a BankDBClient instance for communicating with a bank database.
 
         This constructor sets up the necessary parameters to establish a connection 
@@ -222,7 +224,7 @@ class DWHClient(Client):
                 user: str,
                 password: str,
                 port: str,
-                schema: BaseModel,
+                schema: DWHSchema,
                 scd2_config: Dict[str, Dict[str, str]] = None,
                 fact_mapping: Dict[str, Dict[str, str]]= None):
         """Initializes a DWHClient instance for communicating with a data warehouse database.
@@ -492,7 +494,7 @@ class DWHClient(Client):
 
     def report_blacklist_fraud(self, report_date: datetime = None) -> None:
         query_template = """
-        INSERT INTO public.maka_rep_fraud (event_dt, passport, fio, phone, event_type, report_dt)
+        INSERT INTO {rep_fraud_table_name} (event_dt, passport, fio, phone, event_type, report_dt)
         SELECT 
             t.trans_date AS event_dt,
             cl.passport_num AS passport,
@@ -500,14 +502,14 @@ class DWHClient(Client):
             cl.phone AS phone,
             'Заблокированный или просроченный паспорт' AS event_type,
             CURRENT_DATE AS report_dt
-        FROM public.maka_dwh_fact_transactions t
-        JOIN public.maka_dwh_dim_cards_hist c
+        FROM {fact_transactions_table_name} t
+        JOIN {dim_cards_table_name} c
             ON TRIM(t.card_num) = TRIM(c.cards_num) AND c.deleted_flg = False
         JOIN public.maka_dwh_dim_accounts_hist a
             ON c.account_num = a.account_num AND c.deleted_flg = False
-        JOIN public.maka_dwh_dim_clients_hist cl
+        JOIN {dim_clients_table_name} cl
             ON a.client = cl.client_id AND c.deleted_flg = False
-        JOIN public.maka_dwh_fact_passport_blacklist p
+        JOIN {fact_blacklist_table_name} p
             ON cl.passport_num = p.passport_num
         WHERE (p.entry_dt <= t.trans_date OR cl.passport_valid_to <= t.trans_date)
         AND t.trans_date >= {date_string};
@@ -524,8 +526,16 @@ class DWHClient(Client):
             """.format(
                 meta_table_name=self.schema.META.meta,
                 date_ref_table_name=self.schema.STG.transactions
-                                          )
-        query = query_template.format(date_string=date_string)
+                )
+            
+        query = query_template.format(
+            rep_fraud_table_name=self.schema.REP.fraud,
+            fact_transactions_table_name=self.schema.FACT.transactions,
+            dim_cards_table_name=self.schema.DIM.cards,
+            dim_clients_table_name=self.schema.DIM.clients,
+            fact_blacklist_table_name=self.schema.FACT.blacklist,
+            date_string=date_string)
+        
         self.logger.info("Checking blacklist frauds ...")
         with self.connection.cursor() as cursor:
             cursor.execute(query)
@@ -534,7 +544,7 @@ class DWHClient(Client):
 
     def report_invalid_contract_fraud(self, report_date: datetime = None) -> None:
         query_template = """
-        INSERT INTO public.maka_rep_fraud (event_dt, passport, fio, phone, event_type, report_dt)
+        INSERT INTO {rep_fraud_table_name} (event_dt, passport, fio, phone, event_type, report_dt)
         SELECT 
             t.trans_date AS event_dt,
             cl.passport_num AS passport,
@@ -542,12 +552,12 @@ class DWHClient(Client):
             cl.phone AS phone,
             'Недействующий договор' AS event_type,
             CURRENT_DATE AS report_dt
-        FROM public.maka_dwh_fact_transactions t
-        JOIN public.maka_dwh_dim_cards_hist c
+        FROM {fact_transactions_table_name} t
+        JOIN {dim_cards_table_name} c
             ON TRIM(t.card_num) = TRIM(c.cards_num) AND c.deleted_flg = False
-        JOIN public.maka_dwh_dim_accounts_hist a
+        JOIN {dim_accounts_table_name} a
             ON c.account_num = a.account_num AND a.deleted_flg = False
-        JOIN public.maka_dwh_dim_clients_hist cl
+        JOIN {dim_clients_table_name} cl
             ON a.client = cl.client_id AND cl.deleted_flg = False
         WHERE a.valid_to <= t.trans_date
         AND t.trans_date >= {date_string};
@@ -565,7 +575,15 @@ class DWHClient(Client):
                 meta_table_name=self.schema.META.meta,
                 date_ref_table_name=self.schema.STG.transactions
                                           )
-        query = query_template.format(date_string=date_string)
+            
+        query = query_template.format(
+            rep_fraud_table_name=self.schema.REP.fraud,
+            fact_transactions_table_name=self.schema.FACT.transactions,
+            dim_cards_table_name=self.schema.DIM.cards,
+            dim_accounts_table_name=self.schema.DIM.accounts,
+            dim_clients_table_name=self.schema.DIM.clients,
+            date_string=date_string)
+        
         self.logger.info("Checking invalid contract frauds ...")
         with self.connection.cursor() as cursor:
             cursor.execute(query)
@@ -578,9 +596,9 @@ class DWHClient(Client):
             SELECT 
                 a.client AS client_id,
                 c.cards_num
-            FROM public.maka_dwh_dim_cards_hist c
-            JOIN public.maka_dwh_dim_accounts_hist a ON c.account_num = a.account_num AND a.deleted_flg = False
-            JOIN public.maka_dwh_dim_clients_hist cl ON a.client = cl.client_id AND cl.deleted_flg = False
+            FROM {dim_cards_table_name} c
+            JOIN {dim_accounts_table_name} a ON c.account_num = a.account_num AND a.deleted_flg = False
+            JOIN {dim_clients_table_name} cl ON a.client = cl.client_id AND cl.deleted_flg = False
             GROUP BY a.client, c.cards_num
         ),
         filtered_transactions AS (
@@ -591,14 +609,14 @@ class DWHClient(Client):
                 cl.passport_num,
                 CONCAT(cl.last_name, ' ', cl.first_name, ' ', cl.patronymic) AS fio,
                 cl.phone
-            FROM public.maka_dwh_fact_transactions t
-            JOIN public.maka_dwh_dim_terminals_hist term ON t.terminal = term.terminal_id AND term.deleted_flg = False
+            FROM {fact_transactions_table_name} t
+            JOIN {dim_terminals_table_name} term ON t.terminal = term.terminal_id AND term.deleted_flg = False
             JOIN unique_cards uc ON TRIM(t.card_num) = TRIM(uc.cards_num)
-            JOIN public.maka_dwh_dim_cards_hist c ON TRIM(t.card_num) = TRIM(c.cards_num) AND c.deleted_flg = False
-            JOIN public.maka_dwh_dim_accounts_hist a ON c.account_num = a.account_num AND a.deleted_flg = False
-            JOIN public.maka_dwh_dim_clients_hist cl ON a.client = cl.client_id AND cl.deleted_flg = FALSE
+            JOIN {dim_cards_table_name} c ON TRIM(t.card_num) = TRIM(c.cards_num) AND c.deleted_flg = False
+            JOIN {dim_accounts_table_name} a ON c.account_num = a.account_num AND a.deleted_flg = False
+            JOIN {dim_clients_table_name} cl ON a.client = cl.client_id AND cl.deleted_flg = FALSE
         )
-        INSERT INTO public.maka_rep_fraud (event_dt, passport, fio, phone, event_type, report_dt)
+        INSERT INTO {rep_fraud_table_name} (event_dt, passport, fio, phone, event_type, report_dt)
         SELECT DISTINCT 
             t1.trans_date AS event_dt,
             t1.passport_num AS passport,
@@ -626,7 +644,16 @@ class DWHClient(Client):
                 meta_table_name=self.schema.META.meta,
                 date_ref_table_name=self.schema.STG.transactions
                                           )
-        query = query_template.format(date_string=date_string)
+            
+        query = query_template.format(
+            rep_fraud_table_name=self.schema.REP.fraud,
+            fact_transactions_table_name=self.schema.FACT.transactions,
+            dim_terminals_table_name=self.schema.DIM.terminals,
+            dim_cards_table_name=self.schema.DIM.cards,
+            dim_accounts_table_name=self.schema.DIM.accounts,
+            dim_clients_table_name=self.schema.DIM.clients,
+            date_string=date_string)
+        
         self.logger.info("Checking transaction in different cities frauds ...")
         with self.connection.cursor() as cursor:
             cursor.execute(query)
@@ -642,8 +669,8 @@ class DWHClient(Client):
                 t.amt, 
                 t.oper_result,
                 ROW_NUMBER() OVER (PARTITION BY TRIM(t.card_num) ORDER BY t.trans_date) AS rn
-            FROM public.maka_dwh_fact_transactions t
-            JOIN public.maka_dwh_dim_cards_hist c
+            FROM {fact_transactions_table_name} t
+            JOIN {dim_cards_table_name} c
                 ON TRIM(t.card_num) = TRIM(c.cards_num) AND c.deleted_flg = False
             WHERE t.trans_date >= {date_string}
         ), 
@@ -710,7 +737,7 @@ class DWHClient(Client):
             FROM filtered_suspicious_transactions
             WHERE oper_result = 'REJECT'
         )
-        INSERT INTO public.maka_rep_fraud (event_dt, passport, fio, phone, event_type, report_dt)
+        INSERT INTO {rep_fraud_table_name} (event_dt, passport, fio, phone, event_type, report_dt)
         SELECT 
             dst.trans_date AS event_dt,
             cl.passport_num AS passport,
@@ -719,11 +746,11 @@ class DWHClient(Client):
             'Попытка подбора суммы' AS event_type,
             CURRENT_DATE AS report_dt
         FROM distinct_suspicious_transactions dst
-        JOIN public.maka_dwh_dim_cards_hist c
+        JOIN {dim_cards_table_name} c
             ON TRIM(dst.card_num) = TRIM(c.cards_num) AND c.deleted_flg = False
-        JOIN public.maka_dwh_dim_accounts_hist a
+        JOIN {dim_accounts_table_name} a
             ON c.account_num = a.account_num AND a.deleted_flg = False
-        JOIN public.maka_dwh_dim_clients_hist cl
+        JOIN {dim_clients_table_name} cl
             ON a.client = cl.client_id AND cl.deleted_flg = False
         ORDER BY dst.trans_date;
         """
@@ -740,7 +767,15 @@ class DWHClient(Client):
                 meta_table_name=self.schema.META.meta,
                 date_ref_table_name=self.schema.STG.transactions
                                           )
-        query = query_template.format(date_string=date_string)
+        
+        query = query_template.format(
+            rep_fraud_table_name=self.schema.REP.fraud,
+            fact_transactions_table_name=self.schema.FACT.transactions,
+            dim_cards_table_name=self.schema.DIM.cards,
+            dim_accounts_table_name=self.schema.DIM.accounts,
+            dim_clients_table_name=self.schema.DIM.clients,
+            date_string=date_string)
+        
         self.logger.info("Checking amount guessing frauds ...")
         with self.connection.cursor() as cursor:
             cursor.execute(query)
