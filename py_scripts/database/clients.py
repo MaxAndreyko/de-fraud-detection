@@ -556,6 +556,14 @@ class DWHClient(Client):
         return date_string
 
     def report_blacklist_fraud(self, report_date: datetime = None) -> None:
+        """Executes SQL query that reports transactions of clients
+           with passport from blacklist.
+
+        Parameters
+        ----------
+        report_date : datetime, optional
+            Report date as datetime object, by default None
+        """
         query_template = """
         INSERT INTO {rep_fraud_table_name} (event_dt, passport, fio, phone, event_type, report_dt)
         SELECT
@@ -591,6 +599,14 @@ class DWHClient(Client):
         self.execute_query(query)
 
     def report_invalid_contract_fraud(self, report_date: datetime = None) -> None:
+        """Executes SQL query that reports transactions of clients
+           with invalid contracts.
+
+        Parameters
+        ----------
+        report_date : datetime, optional
+            Report date as datetime object, by default None
+        """
         query_template = """
         INSERT INTO {rep_fraud_table_name} (event_dt, passport, fio, phone, event_type, report_dt)
         SELECT
@@ -626,6 +642,14 @@ class DWHClient(Client):
     def report_transactions_in_different_cities_fraud(
         self, report_date: datetime = None
     ) -> None:
+        """Executes SQL query that reports transactions that were made from different cities
+           in small time period.
+
+        Parameters
+        ----------
+        report_date : datetime, optional
+            Report date as datetime object, by default None
+        """
         query_template = """
         WITH unique_cards AS (
             SELECT
@@ -681,6 +705,14 @@ class DWHClient(Client):
         self.execute_query(query)
 
     def report_amount_guessing_fraud(self, report_date: datetime = None) -> None:
+        """Executes SQL query that reports transactions that mets available
+           amount guessing pattern.
+
+        Parameters
+        ----------
+        report_date : datetime, optional
+            Report date as datetime object, by default None
+        """
         query_template = """
         WITH RECURSIVE ordered_transactions AS (
             SELECT
