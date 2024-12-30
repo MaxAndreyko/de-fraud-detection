@@ -18,4 +18,5 @@ preprocess:
     rm_cols:
       - path
 
-data_dir: tests/data/terminals/input
+data_dir: data/
+archive_dir: archive/
