@@ -1,33 +1,8 @@
-import os
 import pandas as pd
-import re
 from typing import List, Dict
 from datetime import datetime
 
-def get_filepaths_by_pattern(source_dir: str, pattern: str) -> List[str]:
-    """Gets filepaths of files with specified filename pattern using regex.
-
-    Parameters
-    ----------
-    source_dir : str
-        Folder where to search for files.
-    pattern : str
-        Regex pattern to match filenames against, e.g., r'transactions_(\d{2})(\d{2})(\d{4})\.txt'.
-
-    Returns
-    -------
-    List[str]
-        A list of filepaths that match the specified pattern.
-    """
-    matched_filepaths = []
-    regex = re.compile(pattern)
-
-    for dirpath, _, filenames in os.walk(source_dir):
-        for filename in filenames:
-            if regex.match(filename):
-                matched_filepaths.append(os.path.join(dirpath, filename))
-
-    return matched_filepaths
+from src.os.utils import get_date_from_string, get_filepaths_by_pattern
 
 
 def get_incoming_data(source_dir: str, file_patterns: Dict[str, str], csv_sep: str = ";") -> Dict[datetime, Dict[str, pd.DataFrame]]:
@@ -175,35 +150,6 @@ def remove_columns(df: pd.DataFrame, cols: List[str]) -> pd.DataFrame:
     return df.drop(columns=cols_to_remove, inplace=True)
 
 
-def get_date_from_string(string: str, regexp_date_pattern: str = r"(\d{2})(\d{2})(\d{4})", dt_date_pattern: str = "%d%m%Y") -> datetime:
-    """
-    Extracts a date from a string and returns it as a datetime object.
-
-    Parameters
-    ----------
-    string : str
-        The input string from which to extract the date.
-    regexp_date_pattern : str
-        Regular expression pattern to match the date.
-    dt_date_pattern : str
-        Format of the date to be extracted.
-
-    Returns
-    -------
-    datetime
-        The extracted date as a datetime object.
-
-    Raises
-    ------
-    ValueError
-        If no valid date is found in the string.
-    """
-    match = re.search(regexp_date_pattern, string)
-    if match:
-        date_str = ''.join(match.groups())
-        return datetime.strptime(date_str, dt_date_pattern)
-    raise ValueError("No valid date found in the string.")
-
 def clean_numeric_columns(df: pd.DataFrame, cols: List[str]) -> pd.DataFrame:
     """Cleans specified numeric columns in a DataFrame by standardizing their formats.
 
@@ -235,5 +181,3 @@ def clean_numeric_columns(df: pd.DataFrame, cols: List[str]) -> pd.DataFrame:
             df.loc[:, col] = df[col].str.replace(",", ".") # Replace comma with point
             df.loc[:, col] = df[col].str.replace("[^\.\d]", "", regex=True) # Remove all non numeric character except point
     return df
-
-
