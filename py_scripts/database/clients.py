@@ -258,6 +258,12 @@ class DWHClient(Client):
         schema : BaseModel
             A Pydantic model representing the schema for data that will be used in 
             interactions with the data warehouse.
+        scd2_config : Dict[str, Dict[str, str]]
+            Configuration as dictionary of dictionaries for converting tables to
+            SCD2 format
+        fact_mapping : Dict[str, Dict[str, str]]
+            Configuration as dictionary of dictionaries with column names mapping
+            to insert data from staging to fact tables
         """
 
         super().__init__(database=database,
