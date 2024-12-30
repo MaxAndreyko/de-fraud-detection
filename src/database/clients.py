@@ -510,18 +510,24 @@ class DWHClient(Client):
         JOIN public.maka_dwh_fact_passport_blacklist p
             ON cl.passport_num = p.passport_num
         WHERE (p.entry_dt <= t.trans_date OR cl.passport_valid_to <= t.trans_date)
-        AND t.trans_date >= (
-            SELECT MAX(max_update_dt) 
-            FROM {meta_table_name} 
-            WHERE table_name = '{date_ref_table_name}'
-        );
+        AND t.trans_date >= {date_string};
         """
-        self.logger.info("Checking blacklist frauds ...")
-        with self.connection.cursor() as cursor:
-            query = query_template.format(
+        if report_date is not None:
+            date_string = f"'{report_date.strftime('%Y-%m-%d')}'"
+        else:
+            date_string = """
+            (
+                SELECT MAX(max_update_dt) 
+                FROM {meta_table_name} 
+                WHERE table_name = '{date_ref_table_name}'
+            )
+            """.format(
                 meta_table_name=self.schema.META.meta,
                 date_ref_table_name=self.schema.STG.transactions
                                           )
+        query = query_template.format(date_string=date_string)
+        self.logger.info("Checking blacklist frauds ...")
+        with self.connection.cursor() as cursor:
             cursor.execute(query)
             self.connection.commit()
         self.logger.info("Complete")
@@ -544,18 +550,24 @@ class DWHClient(Client):
         JOIN public.maka_dwh_dim_clients_hist cl
             ON a.client = cl.client_id AND cl.deleted_flg = False
         WHERE a.valid_to <= t.trans_date
-        AND t.trans_date >= (
-            SELECT MAX(max_update_dt) 
-            FROM {meta_table_name} 
-            WHERE table_name = '{date_ref_table_name}'
-        );
+        AND t.trans_date >= {date_string};
         """
+        if report_date is not None:
+            date_string = f"'{report_date.strftime('%Y-%m-%d')}'"
+        else:
+            date_string = """
+            (
+                SELECT MAX(max_update_dt) 
+                FROM {meta_table_name} 
+                WHERE table_name = '{date_ref_table_name}'
+            )
+            """.format(
+                meta_table_name=self.schema.META.meta,
+                date_ref_table_name=self.schema.STG.transactions
+                                          )
+        query = query_template.format(date_string=date_string)
         self.logger.info("Checking invalid contract frauds ...")
         with self.connection.cursor() as cursor:
-            query = query_template.format(
-            meta_table_name=self.schema.META.meta,
-            date_ref_table_name=self.schema.STG.transactions
-                                        )
             cursor.execute(query)
             self.connection.commit()
         self.logger.info("Complete")
@@ -599,18 +611,24 @@ class DWHClient(Client):
             ON t1.passport_num = t2.passport_num
             AND t1.terminal_city != t2.terminal_city 
             AND ABS(EXTRACT(EPOCH FROM t2.trans_date) - EXTRACT(EPOCH FROM t1.trans_date)) <= 3600
-        WHERE t1.trans_date >= (
-            SELECT MAX(max_update_dt) 
-            FROM {meta_table_name} 
-            WHERE table_name = '{date_ref_table_name}'
-        );
+        WHERE t1.trans_date >= {date_string};
         """
+        if report_date is not None:
+            date_string = f"'{report_date.strftime('%Y-%m-%d')}'"
+        else:
+            date_string = """
+            (
+                SELECT MAX(max_update_dt) 
+                FROM {meta_table_name} 
+                WHERE table_name = '{date_ref_table_name}'
+            )
+            """.format(
+                meta_table_name=self.schema.META.meta,
+                date_ref_table_name=self.schema.STG.transactions
+                                          )
+        query = query_template.format(date_string=date_string)
         self.logger.info("Checking transaction in different cities frauds ...")
         with self.connection.cursor() as cursor:
-            query = query_template.format(
-            meta_table_name=self.schema.META.meta,
-            date_ref_table_name=self.schema.STG.transactions
-                                        )
             cursor.execute(query)
             self.connection.commit()
         self.logger.info("Complete")
@@ -627,11 +645,7 @@ class DWHClient(Client):
             FROM public.maka_dwh_fact_transactions t
             JOIN public.maka_dwh_dim_cards_hist c
                 ON TRIM(t.card_num) = TRIM(c.cards_num) AND c.deleted_flg = False
-            WHERE t.trans_date >= (
-                SELECT MAX(max_update_dt) 
-                FROM {meta_table_name} 
-                WHERE table_name = '{date_ref_table_name}'
-            )
+            WHERE t.trans_date >= {date_string}
         ), 
         suspicious_sequences AS (
             SELECT 
@@ -713,12 +727,22 @@ class DWHClient(Client):
             ON a.client = cl.client_id AND cl.deleted_flg = False
         ORDER BY dst.trans_date;
         """
+        if report_date is not None:
+            date_string = f"'{report_date.strftime('%Y-%m-%d')}'"
+        else:
+            date_string = """
+            (
+                SELECT MAX(max_update_dt) 
+                FROM {meta_table_name} 
+                WHERE table_name = '{date_ref_table_name}'
+            )
+            """.format(
+                meta_table_name=self.schema.META.meta,
+                date_ref_table_name=self.schema.STG.transactions
+                                          )
+        query = query_template.format(date_string=date_string)
         self.logger.info("Checking amount guessing frauds ...")
         with self.connection.cursor() as cursor:
-            query = query_template.format(
-            meta_table_name=self.schema.META.meta,
-            date_ref_table_name=self.schema.STG.transactions
-                                        )
             cursor.execute(query)
             self.connection.commit()
         self.logger.info("Complete")
