@@ -1,11 +1,12 @@
 import os
-from dotenv import load_dotenv, find_dotenv
-import yaml
 
+import yaml
+from dotenv import find_dotenv, load_dotenv
+
+from py_scripts.database.clients import BankDBClient, DWHClient
+from py_scripts.database.models import BankSchema, DWHSchema
 from py_scripts.os.read import get_incoming_data, prep_incoming_data
 from py_scripts.os.utils import archive_files_by_patterns
-from py_scripts.database.models import DWHSchema, BankSchema
-from py_scripts.database.clients import DWHClient, BankDBClient
 
 if __name__ == "__main__":
     load_dotenv(find_dotenv())
@@ -23,7 +24,7 @@ if __name__ == "__main__":
         user=os.getenv("DB_USER"),
         password=os.getenv("DB_PASS"),
         port=os.getenv("DB_PORT"),
-        schema=bank_schema
+        schema=bank_schema,
     )
 
     # Establish connection with data warehouse
@@ -36,7 +37,7 @@ if __name__ == "__main__":
         port=os.getenv("DB_PORT"),
         schema=dwh_schema,
         scd2_config=dwh_cfg["scd2"],
-        fact_mapping=dwh_cfg["fact_mapping"]
+        fact_mapping=dwh_cfg["fact_mapping"],
     )
 
     # Initialize data warehouse schema
@@ -57,6 +58,8 @@ if __name__ == "__main__":
 
         # Report frauds
         dwh_client.report_frauds()
-    
+
     # Archive processed files
-    archive_files_by_patterns(os_cfg["data_dir"], os_cfg["archive_dir"], os_cfg["patterns"])
+    archive_files_by_patterns(
+        os_cfg["data_dir"], os_cfg["archive_dir"], os_cfg["patterns"]
+    )
