@@ -1,6 +1,7 @@
 import yaml
 from pydantic import BaseModel, Field
 
+
 class Schema(BaseModel):
     @classmethod
     def from_yaml(cls, file_path: str) -> "Schema":
@@ -8,12 +9,14 @@ class Schema(BaseModel):
             config_data = yaml.safe_load(file)["tables"]
             return cls(**config_data)
 
+
 class BankSchema(Schema):
-    """Stores bank database table names
-    """
+    """Stores bank database table names"""
+
     accounts: str
     cards: str
     clients: str
+
 
 class DIMTableNames(BaseModel):
     accounts: str = Field(...)
@@ -21,9 +24,11 @@ class DIMTableNames(BaseModel):
     clients: str = Field(...)
     terminals: str = Field(...)
 
+
 class FACTTableNames(BaseModel):
     blacklist: str = Field(...)
     transactions: str = Field(...)
+
 
 class STGTableNames(BaseModel):
     accounts: str = Field(...)
@@ -33,15 +38,18 @@ class STGTableNames(BaseModel):
     terminals: str = Field(...)
     transactions: str = Field(...)
 
+
 class REPTableNames(BaseModel):
     fraud: str = Field(...)
+
 
 class METATableNames(BaseModel):
     meta: str = Field(...)
 
+
 class DWHSchema(Schema):
-    DIM: DIMTableNames   # Dimension table names
-    FACT: FACTTableNames # Fact table names
-    STG: STGTableNames   # Staging table names
-    REP: REPTableNames   # Report table names
-    META: METATableNames   # Report table names
+    DIM: DIMTableNames  # Dimension table names
+    FACT: FACTTableNames  # Fact table names
+    STG: STGTableNames  # Staging table names
+    REP: REPTableNames  # Report table names
+    META: METATableNames  # Report table names

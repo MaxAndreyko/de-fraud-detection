@@ -1,30 +1,34 @@
 import logging
-from pydantic import BaseModel
-from typing import Dict
-import pandas as pd
 from datetime import datetime
+from typing import Dict
 
+import pandas as pd
 import psycopg2
-from psycopg2.extras import execute_batch
 from psycopg2.extensions import connection as Connection
+from psycopg2.extras import execute_batch
+from pydantic import BaseModel
 
-from py_scripts.database.models import DWHSchema, BankSchema
+from py_scripts.database.models import BankSchema, DWHSchema
+
 
 class Client:
     """Base Client class.
-    
+
     All Client classes should be inherited from this class"""
-    def __init__(self,
-                database: str,
-                host: str,
-                user: str,
-                password: str,
-                port: str,
-                schema: BaseModel):
+
+    def __init__(
+        self,
+        database: str,
+        host: str,
+        user: str,
+        password: str,
+        port: str,
+        schema: BaseModel,
+    ):
         """Initializes a Client instance for communicating with a database.
 
-        This constructor sets up the necessary parameters to establish a connection 
-        with the specified database. It prepares the client with the provided connection 
+        This constructor sets up the necessary parameters to establish a connection
+        with the specified database. It prepares the client with the provided connection
         details, which are essential for performing database operations.
 
         Parameters
@@ -40,11 +44,10 @@ class Client:
         port : str
             The port number on which the database server is listening.
         schema : BaseModel
-            A Pydantic model representing the schema for data that will be used in 
+            A Pydantic model representing the schema for data that will be used in
             interactions with the database.
         """
 
-        
         self.logger = logging.getLogger(__name__)
         self.connection: Connection = None
         self.schema = schema
@@ -56,13 +59,15 @@ class Client:
                 password=password,
                 port=port,
             )
-            
+
             self.connection.autocommit = False
             self.logger.info(f"Successfully connected to the database '{database}'")
 
         except Exception:
-            self.logger.error(f"Could not establish connection with database '{database}'", exc_info=True)
-            
+            self.logger.error(
+                f"Could not establish connection with database '{database}'",
+                exc_info=True,
+            )
 
     def is_table_empty(self, table_name: str) -> bool:
         """Checks if specified table empty.
@@ -75,7 +80,6 @@ class Client:
             cursor.execute("SELECT EXISTS (SELECT 1 FROM %s LIMIT 1);" % table_name)
             is_empty = not cursor.fetchone()[0]
         return is_empty
-
 
     def fetch_data_to_df(self, table_name: str) -> pd.DataFrame:
         """
@@ -91,14 +95,14 @@ class Client:
         """
 
         select_query = "SELECT * FROM %s;" % table_name
-        
+
         with self.connection.cursor() as cursor:
             cursor.execute(select_query)
             rows = cursor.fetchall()
 
         column_names = [desc[0] for desc in cursor.description]
         df = pd.DataFrame(rows, columns=column_names)
-        
+
         return df
 
     def insert_df_to_table(self, df: pd.DataFrame, table_name: str) -> None:
@@ -113,22 +117,20 @@ class Client:
         """
         # Prepare the SQL insert statement
         columns = df.columns.tolist()
-        
+
         # Create an insert query with placeholders for each column
         insert_query = "INSERT INTO {} ({}) VALUES ({})".format(
-            table_name,
-            ', '.join(columns),
-            ', '.join(["%s"] * len(columns))
+            table_name, ", ".join(columns), ", ".join(["%s"] * len(columns))
         )
-        
+
         # Prepare data for insertion
         values = [tuple(row) for row in df.itertuples(index=False, name=None)]
-        
+
         # Use executemany to insert all rows at once
         with self.connection.cursor() as cursor:
             execute_batch(cursor, insert_query, values)
             self.connection.commit()
-    
+
     def clear_table(self, table_name: str) -> None:
         """Clears table by specified table name
 
@@ -140,14 +142,16 @@ class Client:
         with self.connection.cursor() as cursor:
             cursor.execute("DELETE FROM %s;" % table_name)
             self.connection.commit()
-    
-    def insert_from_table_to_table(self, src_table_name: str, dest_table_name, mapping: Dict[str, str]) -> None:
+
+    def insert_from_table_to_table(
+        self, src_table_name: str, dest_table_name, mapping: Dict[str, str]
+    ) -> None:
         query_template = """
             INSERT INTO {dest_table_name} ({dest_cols_string})
             SELECT {src_cols_string}
             FROM {src_table_name} src
             WHERE NOT EXISTS (
-            SELECT 1 
+            SELECT 1
             FROM {dest_table_name} dest
             WHERE {where_string}
         );
@@ -155,18 +159,20 @@ class Client:
 
         src_cols_string = ", ".join(list(mapping.keys()))
         dest_cols_string = ", ".join(list(mapping.values()))
-        
+
         where_list = []
         for src_col, dest_col in mapping.items():
             where_list.append(f"dest.{dest_col} = src.{src_col}")
         where_string = " AND ".join(where_list)
 
-        query = query_template.format(dest_table_name=dest_table_name,
-                                      dest_cols_string=dest_cols_string,
-                                      src_table_name=src_table_name,
-                                      src_cols_string=src_cols_string,
-                                      where_string=where_string)
-        
+        query = query_template.format(
+            dest_table_name=dest_table_name,
+            dest_cols_string=dest_cols_string,
+            src_table_name=src_table_name,
+            src_cols_string=src_cols_string,
+            where_string=where_string,
+        )
+
         self.execute_query(query)
 
     def execute_query(self, query: str) -> None:
@@ -184,20 +190,22 @@ class Client:
 
 class BankDBClient(Client):
     """Communicates with bank database.
-    
+
     e.g. recieves client related information from bank database"""
 
-    def __init__(self,
-                database: str,
-                host: str,
-                user: str,
-                password: str,
-                port: str,
-                schema: BankSchema):
+    def __init__(
+        self,
+        database: str,
+        host: str,
+        user: str,
+        password: str,
+        port: str,
+        schema: BankSchema,
+    ):
         """Initializes a BankDBClient instance for communicating with a bank database.
 
-        This constructor sets up the necessary parameters to establish a connection 
-        with the specified bank database. It inherits from the base `Client` class 
+        This constructor sets up the necessary parameters to establish a connection
+        with the specified bank database. It inherits from the base `Client` class
         and initializes it with the provided database connection details.
 
         Parameters
@@ -213,34 +221,38 @@ class BankDBClient(Client):
         port : str
             The port number on which the database server is listening.
         schema : BaseModel
-            A Pydantic model representing the schema for client-related information 
+            A Pydantic model representing the schema for client-related information
             that will be used in interactions with the bank database.
         """
 
-        super().__init__(database=database,
-                         host=host,
-                         user=user,
-                         password=password,
-                         port=port,
-                         schema=schema)
+        super().__init__(
+            database=database,
+            host=host,
+            user=user,
+            password=password,
+            port=port,
+            schema=schema,
+        )
 
 
 class DWHClient(Client):
     """Communicates with data warehouse database."""
 
-    def __init__(self,
-                database: str,
-                host: str,
-                user: str,
-                password: str,
-                port: str,
-                schema: DWHSchema,
-                scd2_config: Dict[str, Dict[str, str]] = None,
-                fact_mapping: Dict[str, Dict[str, str]]= None):
+    def __init__(
+        self,
+        database: str,
+        host: str,
+        user: str,
+        password: str,
+        port: str,
+        schema: DWHSchema,
+        scd2_config: Dict[str, Dict[str, str]] = None,
+        fact_mapping: Dict[str, Dict[str, str]] = None,
+    ):
         """Initializes a DWHClient instance for communicating with a data warehouse database.
 
-        This constructor sets up the necessary parameters to establish a connection 
-        with the specified data warehouse database. It inherits from the base `Client` 
+        This constructor sets up the necessary parameters to establish a connection
+        with the specified data warehouse database. It inherits from the base `Client`
         class and initializes it with the provided database connection details.
 
         Parameters
@@ -256,7 +268,7 @@ class DWHClient(Client):
         port : str
             The port number on which the data warehouse server is listening.
         schema : BaseModel
-            A Pydantic model representing the schema for data that will be used in 
+            A Pydantic model representing the schema for data that will be used in
             interactions with the data warehouse.
         scd2_config : Dict[str, Dict[str, str]]
             Configuration as dictionary of dictionaries for converting tables to
@@ -266,17 +278,19 @@ class DWHClient(Client):
             to insert data from staging to fact tables
         """
 
-        super().__init__(database=database,
-                         host=host,
-                         user=user,
-                         password=password,
-                         port=port,
-                         schema=schema)
+        super().__init__(
+            database=database,
+            host=host,
+            user=user,
+            password=password,
+            port=port,
+            schema=schema,
+        )
         self.scd2_config = scd2_config
         self.fact_mapping = fact_mapping
         self.max_dt = "3000-01-01"
         self.min_dt = "1900-01-01"
-    
+
     def create_schema(self, ddl_pattern_filepath: str) -> None:
         """Creates empty database schema according to specified DDL script.
 
@@ -288,7 +302,7 @@ class DWHClient(Client):
 
         with open(ddl_pattern_filepath, "r") as sql_file:
             sql_script = sql_file.read()
-        
+
         # Replace table names patterns with actual table names
         sql_script = sql_script.format(
             DIM_terminals=self.schema.DIM.terminals,
@@ -306,7 +320,7 @@ class DWHClient(Client):
             STG_cards=self.schema.STG.cards,
             META=self.schema.META.meta,
         )
-            
+
         self.execute_query(sql_script)
 
     def insert_to_stg_table(self, field_name: str, data: pd.DataFrame) -> None:
@@ -324,8 +338,9 @@ class DWHClient(Client):
             self.clear_table(stg_table_name)
             self.insert_df_to_table(data, stg_table_name)
         else:
-            raise AttributeError(f"No table name for {field_name} field name found in staging tables")
-
+            raise AttributeError(
+                f"No table name for {field_name} field name found in staging tables"
+            )
 
     def insert_bank_tables(self, bank_client: BankDBClient) -> None:
         """Inserts data to bank tables.
@@ -338,7 +353,7 @@ class DWHClient(Client):
             Bank database client object.
         """
         for dim_field_name, _ in self.schema.DIM:
-            
+
             # if self.is_table_empty(dim_table_name):
 
             if hasattr(bank_client.schema, dim_field_name):
@@ -356,10 +371,13 @@ class DWHClient(Client):
 
                 scd2_config = self.scd2_config.get(dim_field_name)
                 if scd2_config is not None:
-                    self.insert_from_stg_table_to_dim_table(dim_field_name, **scd2_config)
+                    self.insert_from_stg_table_to_dim_table(
+                        dim_field_name, **scd2_config
+                    )
 
-
-    def update_staging_timestamp_in_meta_table(self, upd_date: datetime, field_name: str) -> None:
+    def update_staging_timestamp_in_meta_table(
+        self, upd_date: datetime, field_name: str
+    ) -> None:
         """Updates timestamp for staging table.
 
         Parameters
@@ -379,18 +397,19 @@ class DWHClient(Client):
             query = query_template.format(
                 meta_table_name=self.schema.META.meta,
                 stg_table_name=stg_table_name,
-                upd_timestamp=upd_date.strftime("%Y-%m-%d")
+                upd_timestamp=upd_date.strftime("%Y-%m-%d"),
             )
             self.execute_query(query)
-            
 
-    def insert_incoming_tables(self, incoming_data: Dict[str, pd.DataFrame], date: datetime) -> None:
+    def insert_incoming_tables(
+        self, incoming_data: Dict[str, pd.DataFrame], date: datetime
+    ) -> None:
         """Inserts incoming data to corresponding tables.
 
         Parameters
         ----------
         incoming_data : Dict[str, pd.DataFrame]
-            A dictionary maps table names to their corresponding 
+            A dictionary maps table names to their corresponding
             pandas DataFrames containing the tabular data.
         """
         for field_name, data in incoming_data.items():
@@ -400,12 +419,12 @@ class DWHClient(Client):
 
             # 1.1 Update date of incoming data in meta table
             self.update_staging_timestamp_in_meta_table(date, field_name)
-            
+
             # 2. Insert data to DWH dimension tables from staging tables
             scd2_config = self.scd2_config.get(field_name)
             if scd2_config is not None:
                 self.insert_from_stg_table_to_dim_table(field_name, **scd2_config)
-            
+
             # 3. Insert data to DWH fact tables from staging tables
             fact_mapping = self.fact_mapping.get(field_name)
             if fact_mapping is not None:
@@ -415,14 +434,18 @@ class DWHClient(Client):
                 if hasattr(self.schema.FACT, field_name):
                     fact_table_name = self.schema.FACT.__getattribute__(field_name)
                 if stg_table_name is not None and fact_table_name is not None:
-                    self.insert_from_table_to_table(stg_table_name, fact_table_name, fact_mapping)
+                    self.insert_from_table_to_table(
+                        stg_table_name, fact_table_name, fact_mapping
+                    )
 
-    
-    def insert_from_stg_table_to_dim_table(self, field_name: str,
-                                           mapping: Dict[str, str],
-                                           date_col: str,
-                                           stg_pk: str,
-                                           dim_pk: str) -> None:
+    def insert_from_stg_table_to_dim_table(
+        self,
+        field_name: str,
+        mapping: Dict[str, str],
+        date_col: str,
+        stg_pk: str,
+        dim_pk: str,
+    ) -> None:
         """Inserts data in dimension table in SCD2 format from staging table.
 
         Parameters
@@ -464,12 +487,17 @@ class DWHClient(Client):
         if stg_table_name is not None and dim_table_name is not None:
 
             dim_cols_string = ", ".join(list(mapping.values()))
-            stg_cols_string = ", ".join(list(map(lambda x: f"stg.{x}", mapping.keys())) + [f"COALESCE(stg.\"{date_col}\", '{self.min_dt}')"])
+            stg_cols_string = ", ".join(
+                list(map(lambda x: f"stg.{x}", mapping.keys()))
+                + [f"COALESCE(stg.\"{date_col}\", '{self.min_dt}')"]
+            )
 
             differ_list_update = []
             differ_list_insert = []
             for stg_col, dim_col in mapping.items():
-                differ_list_update.append(f"{dim_table_name}.{dim_col}" + " <> " + f"stg.{stg_col}")
+                differ_list_update.append(
+                    f"{dim_table_name}.{dim_col}" + " <> " + f"stg.{stg_col}"
+                )
                 differ_list_insert.append(f"dim.{dim_col}" + " <> " + f"stg.{stg_col}")
             differ_string_update = " OR ".join(differ_list_update)
             differ_string_insert = " OR ".join(differ_list_insert)
@@ -484,14 +512,14 @@ class DWHClient(Client):
                 stg_cols_string=stg_cols_string,
                 differ_string_update=differ_string_update,
                 differ_string_insert=differ_string_insert,
-                max_dt=self.max_dt
+                max_dt=self.max_dt,
             )
 
             self.execute_query(query)
-    
+
     def report_frauds(self, report_date: datetime = None) -> None:
         """Manages frauds reporting functions calling
-        
+
         Parameters
         ----------
         report_date : datetime
@@ -520,17 +548,17 @@ class DWHClient(Client):
         else:
             date_string = f"""
             (
-                SELECT MAX(max_update_dt) 
-                FROM {self.schema.META.meta} 
+                SELECT MAX(max_update_dt)
+                FROM {self.schema.META.meta}
                 WHERE table_name = '{self.schema.STG.transactions}'
             )
-            """ # Queries maximum update date for staging transactions table from meta table
+            """  # Queries maximum update date for staging transactions table from meta table
         return date_string
 
     def report_blacklist_fraud(self, report_date: datetime = None) -> None:
         query_template = """
         INSERT INTO {rep_fraud_table_name} (event_dt, passport, fio, phone, event_type, report_dt)
-        SELECT 
+        SELECT
             t.trans_date AS event_dt,
             cl.passport_num AS passport,
             CONCAT(cl.last_name, ' ', cl.first_name, ' ', cl.patronymic) AS fio,
@@ -550,21 +578,22 @@ class DWHClient(Client):
         AND t.trans_date >= {date_string};
         """
         date_string = self.create_fraud_report_date_string(report_date)
-            
+
         query = query_template.format(
             rep_fraud_table_name=self.schema.REP.fraud,
             fact_transactions_table_name=self.schema.FACT.transactions,
             dim_cards_table_name=self.schema.DIM.cards,
             dim_clients_table_name=self.schema.DIM.clients,
             fact_blacklist_table_name=self.schema.FACT.blacklist,
-            date_string=date_string)
-        
+            date_string=date_string,
+        )
+
         self.execute_query(query)
 
     def report_invalid_contract_fraud(self, report_date: datetime = None) -> None:
         query_template = """
         INSERT INTO {rep_fraud_table_name} (event_dt, passport, fio, phone, event_type, report_dt)
-        SELECT 
+        SELECT
             t.trans_date AS event_dt,
             cl.passport_num AS passport,
             CONCAT(cl.last_name, ' ', cl.first_name, ' ', cl.patronymic) AS fio,
@@ -582,21 +611,24 @@ class DWHClient(Client):
         AND t.trans_date >= {date_string};
         """
         date_string = self.create_fraud_report_date_string(report_date)
-            
+
         query = query_template.format(
             rep_fraud_table_name=self.schema.REP.fraud,
             fact_transactions_table_name=self.schema.FACT.transactions,
             dim_cards_table_name=self.schema.DIM.cards,
             dim_accounts_table_name=self.schema.DIM.accounts,
             dim_clients_table_name=self.schema.DIM.clients,
-            date_string=date_string)
-        
+            date_string=date_string,
+        )
+
         self.execute_query(query)
 
-    def report_transactions_in_different_cities_fraud(self, report_date: datetime = None) -> None:
+    def report_transactions_in_different_cities_fraud(
+        self, report_date: datetime = None
+    ) -> None:
         query_template = """
         WITH unique_cards AS (
-            SELECT 
+            SELECT
                 a.client AS client_id,
                 c.cards_num
             FROM {dim_cards_table_name} c
@@ -605,7 +637,7 @@ class DWHClient(Client):
             GROUP BY a.client, c.cards_num
         ),
         filtered_transactions AS (
-            SELECT 
+            SELECT
                 t.trans_date,
                 t.card_num,
                 term.terminal_city,
@@ -620,7 +652,7 @@ class DWHClient(Client):
             JOIN {dim_clients_table_name} cl ON a.client = cl.client_id AND cl.deleted_flg = FALSE
         )
         INSERT INTO {rep_fraud_table_name} (event_dt, passport, fio, phone, event_type, report_dt)
-        SELECT DISTINCT 
+        SELECT DISTINCT
             t1.trans_date AS event_dt,
             t1.passport_num AS passport,
             t1.fio,
@@ -630,12 +662,12 @@ class DWHClient(Client):
         FROM filtered_transactions t1
         JOIN filtered_transactions t2
             ON t1.passport_num = t2.passport_num
-            AND t1.terminal_city != t2.terminal_city 
+            AND t1.terminal_city != t2.terminal_city
             AND ABS(EXTRACT(EPOCH FROM t2.trans_date) - EXTRACT(EPOCH FROM t1.trans_date)) <= 3600
         WHERE t1.trans_date >= {date_string};
         """
         date_string = self.create_fraud_report_date_string(report_date)
-            
+
         query = query_template.format(
             rep_fraud_table_name=self.schema.REP.fraud,
             fact_transactions_table_name=self.schema.FACT.transactions,
@@ -643,27 +675,28 @@ class DWHClient(Client):
             dim_cards_table_name=self.schema.DIM.cards,
             dim_accounts_table_name=self.schema.DIM.accounts,
             dim_clients_table_name=self.schema.DIM.clients,
-            date_string=date_string)
-        
+            date_string=date_string,
+        )
+
         self.execute_query(query)
 
     def report_amount_guessing_fraud(self, report_date: datetime = None) -> None:
         query_template = """
         WITH RECURSIVE ordered_transactions AS (
-            SELECT 
-                TRIM(t.card_num) AS card_num, 
-                t.trans_date, 
-                t.amt, 
+            SELECT
+                TRIM(t.card_num) AS card_num,
+                t.trans_date,
+                t.amt,
                 t.oper_result,
                 ROW_NUMBER() OVER (PARTITION BY TRIM(t.card_num) ORDER BY t.trans_date) AS rn
             FROM {fact_transactions_table_name} t
             JOIN {dim_cards_table_name} c
                 ON TRIM(t.card_num) = TRIM(c.cards_num) AND c.deleted_flg = False
             WHERE t.trans_date >= {date_string}
-        ), 
+        ),
         suspicious_sequences AS (
-            SELECT 
-                card_num, 
+            SELECT
+                card_num,
                 trans_date AS start_date,
                 trans_date AS end_date,
                 amt,
@@ -673,8 +706,8 @@ class DWHClient(Client):
                 CASE WHEN oper_result = 'REJECT' THEN 1 ELSE 0 END AS reject_count
             FROM ordered_transactions
             UNION ALL
-            SELECT 
-                t.card_num, 
+            SELECT
+                t.card_num,
                 s.start_date,
                 t.trans_date,
                 t.amt,
@@ -699,9 +732,9 @@ class DWHClient(Client):
                 AND oper_result = 'SUCCESS'
         ),
         filtered_suspicious_transactions AS (
-            SELECT 
-                o.card_num, 
-                o.trans_date, 
+            SELECT
+                o.card_num,
+                o.trans_date,
                 o.oper_result,
                 ROW_NUMBER() OVER (PARTITION BY o.card_num, f.start_date ORDER BY o.trans_date DESC) AS row_desc
             FROM ordered_transactions o
@@ -710,14 +743,14 @@ class DWHClient(Client):
             WHERE o.trans_date BETWEEN f.start_date AND f.end_date
         ),
         distinct_suspicious_transactions AS (
-            SELECT 
+            SELECT
                 card_num,
                 trans_date,
                 oper_result
             FROM filtered_suspicious_transactions
             WHERE oper_result = 'SUCCESS' AND row_desc = 1
             UNION
-            SELECT 
+            SELECT
                 card_num,
                 trans_date,
                 oper_result
@@ -725,7 +758,7 @@ class DWHClient(Client):
             WHERE oper_result = 'REJECT'
         )
         INSERT INTO {rep_fraud_table_name} (event_dt, passport, fio, phone, event_type, report_dt)
-        SELECT 
+        SELECT
             dst.trans_date AS event_dt,
             cl.passport_num AS passport,
             CONCAT(cl.last_name, ' ', cl.first_name, ' ', cl.patronymic) AS fio,
@@ -742,13 +775,14 @@ class DWHClient(Client):
         ORDER BY dst.trans_date;
         """
         date_string = self.create_fraud_report_date_string(report_date)
-        
+
         query = query_template.format(
             rep_fraud_table_name=self.schema.REP.fraud,
             fact_transactions_table_name=self.schema.FACT.transactions,
             dim_cards_table_name=self.schema.DIM.cards,
             dim_accounts_table_name=self.schema.DIM.accounts,
             dim_clients_table_name=self.schema.DIM.clients,
-            date_string=date_string)
-        
+            date_string=date_string,
+        )
+
         self.execute_query(query)

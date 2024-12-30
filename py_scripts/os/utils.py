@@ -1,10 +1,15 @@
 import os
 import re
 from datetime import datetime
-from typing import List, Dict, Any
 from pathlib import Path
+from typing import Any, Dict, List
 
-def get_date_from_string(string: str, regexp_date_pattern: str = r"(\d{2})(\d{2})(\d{4})", dt_date_pattern: str = "%d%m%Y") -> datetime:
+
+def get_date_from_string(
+    string: str,
+    regexp_date_pattern: str = r"(\d{2})(\d{2})(\d{4})",
+    dt_date_pattern: str = "%d%m%Y",
+) -> datetime:
     """
     Extracts a date from a string and returns it as a datetime object.
 
@@ -29,7 +34,7 @@ def get_date_from_string(string: str, regexp_date_pattern: str = r"(\d{2})(\d{2}
     """
     match = re.search(regexp_date_pattern, string)
     if match:
-        date_str = ''.join(match.groups())
+        date_str = "".join(match.groups())
         return datetime.strptime(date_str, dt_date_pattern)
     raise ValueError("No valid date found in the string.")
 
@@ -60,7 +65,9 @@ def get_filepaths_by_pattern(source_dir: str, pattern: str) -> List[str]:
     return matched_filepaths
 
 
-def archive_files_by_patterns(data_folder: str, archive_folder: str, patterns: Dict[str, Any]) -> None:
+def archive_files_by_patterns(
+    data_folder: str, archive_folder: str, patterns: Dict[str, Any]
+) -> None:
     """
     Moves files matching specified patterns from data_folder to archive_folder.
 
@@ -71,7 +78,7 @@ def archive_files_by_patterns(data_folder: str, archive_folder: str, patterns: D
     archive_folder : str
         The path to the folder where files will be moved.
     patterns : dict of {str: Any}
-        A dictionary where keys are pattern names and values are the patterns used 
+        A dictionary where keys are pattern names and values are the patterns used
         to match files in the data folder.
 
     Returns
@@ -87,5 +94,5 @@ def archive_files_by_patterns(data_folder: str, archive_folder: str, patterns: D
             src_path = Path(file_path)
             new_filename = f"{src_path.name}.backup"
             destination_path = archive_path / new_filename
-            
+
             src_path.rename(destination_path)
