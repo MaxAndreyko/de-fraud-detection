@@ -2,10 +2,10 @@ import os
 from dotenv import load_dotenv, find_dotenv
 import yaml
 
-from src.os.read import get_incoming_data, prep_incoming_data
-from src.os.utils import archive_files_by_patterns
-from src.database.models import DWHSchema, BankSchema
-from src.database.clients import DWHClient, BankDBClient
+from py_scripts.os.read import get_incoming_data, prep_incoming_data
+from py_scripts.os.utils import archive_files_by_patterns
+from py_scripts.database.models import DWHSchema, BankSchema
+from py_scripts.database.clients import DWHClient, BankDBClient
 
 if __name__ == "__main__":
     load_dotenv(find_dotenv())
