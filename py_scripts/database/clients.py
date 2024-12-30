@@ -167,6 +167,16 @@ class Client:
                                       src_cols_string=src_cols_string,
                                       where_string=where_string)
         
+        self.execute_query(query)
+
+    def execute_query(self, query: str) -> None:
+        """Executes specified SQL query
+
+        Parameters
+        ----------
+        query : str
+            SQL query as string
+        """
         with self.connection.cursor() as cursor:
             cursor.execute(query)
             self.connection.commit()
@@ -291,9 +301,7 @@ class DWHClient(Client):
             META=self.schema.META.meta,
         )
             
-        with self.connection.cursor() as cursor:
-            cursor.execute(sql_script)
-            self.connection.commit()
+        self.execute_query(sql_script)
 
     def insert_to_stg_table(self, field_name: str, data: pd.DataFrame) -> None:
         """Inserts data to staging table by field name
@@ -367,9 +375,7 @@ class DWHClient(Client):
                 stg_table_name=stg_table_name,
                 upd_timestamp=upd_date.strftime("%Y-%m-%d")
             )
-            with self.connection.cursor() as cursor:
-                cursor.execute(query)
-                self.connection.commit()
+            self.execute_query(query)
             
 
     def insert_incoming_tables(self, incoming_data: Dict[str, pd.DataFrame], date: datetime) -> None:
@@ -475,9 +481,7 @@ class DWHClient(Client):
                 max_dt=self.max_dt
             )
 
-            with self.connection.cursor() as cursor:
-                cursor.execute(query)
-                self.connection.commit()
+            self.execute_query(query)
     
     def report_frauds(self, report_date: datetime = None) -> None:
         """Manages frauds reporting functions calling
@@ -536,11 +540,7 @@ class DWHClient(Client):
             fact_blacklist_table_name=self.schema.FACT.blacklist,
             date_string=date_string)
         
-        self.logger.info("Checking blacklist frauds ...")
-        with self.connection.cursor() as cursor:
-            cursor.execute(query)
-            self.connection.commit()
-        self.logger.info("Complete")
+        self.execute_query(query)
 
     def report_invalid_contract_fraud(self, report_date: datetime = None) -> None:
         query_template = """
@@ -584,11 +584,7 @@ class DWHClient(Client):
             dim_clients_table_name=self.schema.DIM.clients,
             date_string=date_string)
         
-        self.logger.info("Checking invalid contract frauds ...")
-        with self.connection.cursor() as cursor:
-            cursor.execute(query)
-            self.connection.commit()
-        self.logger.info("Complete")
+        self.execute_query(query)
 
     def report_transactions_in_different_cities_fraud(self, report_date: datetime = None) -> None:
         query_template = """
@@ -654,11 +650,7 @@ class DWHClient(Client):
             dim_clients_table_name=self.schema.DIM.clients,
             date_string=date_string)
         
-        self.logger.info("Checking transaction in different cities frauds ...")
-        with self.connection.cursor() as cursor:
-            cursor.execute(query)
-            self.connection.commit()
-        self.logger.info("Complete")
+        self.execute_query(query)
 
     def report_amount_guessing_fraud(self, report_date: datetime = None) -> None:
         query_template = """
@@ -776,8 +768,4 @@ class DWHClient(Client):
             dim_clients_table_name=self.schema.DIM.clients,
             date_string=date_string)
         
-        self.logger.info("Checking amount guessing frauds ...")
-        with self.connection.cursor() as cursor:
-            cursor.execute(query)
-            self.connection.commit()
-        self.logger.info("Complete")
+        self.execute_query(query)
