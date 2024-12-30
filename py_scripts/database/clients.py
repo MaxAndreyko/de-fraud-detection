@@ -496,6 +496,31 @@ class DWHClient(Client):
         self.report_transactions_in_different_cities_fraud(report_date)
         self.report_amount_guessing_fraud(report_date)
 
+    def create_fraud_report_date_string(self, report_date: datetime = None) -> str:
+        """Creates report date as string for fraud detection queries
+
+        Parameters
+        ----------
+        report_date : datetime, optional
+            Report date as datetime object, by default None
+
+        Returns
+        -------
+        str
+            Report date as string or SQL query that gets report date from meta table
+        """
+        if report_date is not None:
+            date_string = f"'{report_date.strftime('%Y-%m-%d')}'"
+        else:
+            date_string = f"""
+            (
+                SELECT MAX(max_update_dt) 
+                FROM {self.schema.META.meta} 
+                WHERE table_name = '{self.schema.STG.transactions}'
+            )
+            """ # Queries maximum update date for staging transactions table from meta table
+        return date_string
+
     def report_blacklist_fraud(self, report_date: datetime = None) -> None:
         query_template = """
         INSERT INTO {rep_fraud_table_name} (event_dt, passport, fio, phone, event_type, report_dt)
@@ -518,19 +543,7 @@ class DWHClient(Client):
         WHERE (p.entry_dt <= t.trans_date OR cl.passport_valid_to <= t.trans_date)
         AND t.trans_date >= {date_string};
         """
-        if report_date is not None:
-            date_string = f"'{report_date.strftime('%Y-%m-%d')}'"
-        else:
-            date_string = """
-            (
-                SELECT MAX(max_update_dt) 
-                FROM {meta_table_name} 
-                WHERE table_name = '{date_ref_table_name}'
-            )
-            """.format(
-                meta_table_name=self.schema.META.meta,
-                date_ref_table_name=self.schema.STG.transactions
-                )
+        date_string = self.create_fraud_report_date_string(report_date)
             
         query = query_template.format(
             rep_fraud_table_name=self.schema.REP.fraud,
@@ -562,19 +575,7 @@ class DWHClient(Client):
         WHERE a.valid_to <= t.trans_date
         AND t.trans_date >= {date_string};
         """
-        if report_date is not None:
-            date_string = f"'{report_date.strftime('%Y-%m-%d')}'"
-        else:
-            date_string = """
-            (
-                SELECT MAX(max_update_dt) 
-                FROM {meta_table_name} 
-                WHERE table_name = '{date_ref_table_name}'
-            )
-            """.format(
-                meta_table_name=self.schema.META.meta,
-                date_ref_table_name=self.schema.STG.transactions
-                                          )
+        date_string = self.create_fraud_report_date_string(report_date)
             
         query = query_template.format(
             rep_fraud_table_name=self.schema.REP.fraud,
@@ -627,19 +628,7 @@ class DWHClient(Client):
             AND ABS(EXTRACT(EPOCH FROM t2.trans_date) - EXTRACT(EPOCH FROM t1.trans_date)) <= 3600
         WHERE t1.trans_date >= {date_string};
         """
-        if report_date is not None:
-            date_string = f"'{report_date.strftime('%Y-%m-%d')}'"
-        else:
-            date_string = """
-            (
-                SELECT MAX(max_update_dt) 
-                FROM {meta_table_name} 
-                WHERE table_name = '{date_ref_table_name}'
-            )
-            """.format(
-                meta_table_name=self.schema.META.meta,
-                date_ref_table_name=self.schema.STG.transactions
-                                          )
+        date_string = self.create_fraud_report_date_string(report_date)
             
         query = query_template.format(
             rep_fraud_table_name=self.schema.REP.fraud,
@@ -746,19 +735,7 @@ class DWHClient(Client):
             ON a.client = cl.client_id AND cl.deleted_flg = False
         ORDER BY dst.trans_date;
         """
-        if report_date is not None:
-            date_string = f"'{report_date.strftime('%Y-%m-%d')}'"
-        else:
-            date_string = """
-            (
-                SELECT MAX(max_update_dt) 
-                FROM {meta_table_name} 
-                WHERE table_name = '{date_ref_table_name}'
-            )
-            """.format(
-                meta_table_name=self.schema.META.meta,
-                date_ref_table_name=self.schema.STG.transactions
-                                          )
+        date_string = self.create_fraud_report_date_string(report_date)
         
         query = query_template.format(
             rep_fraud_table_name=self.schema.REP.fraud,
